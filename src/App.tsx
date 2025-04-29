@@ -31,8 +31,11 @@ import DashboardPage from "./pages/DashboardPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import ThankyouPage from "./pages/ThankyouPage";
-import { CartProvider } from "./contexts/CartContext"; // Import CartProvider
-import { AuthProvider } from "./contexts/AuthContext"; // Import AuthProvider
+import { CartProvider } from "./contexts/CartContext"; 
+import { AuthProvider } from "./contexts/AuthContext"; 
+import { ToastContainer } from "react-toastify"; 
+import "react-toastify/dist/ReactToastify.css"; 
+
 
 function HomePage() {
   // This component renders all your home sections
@@ -129,6 +132,7 @@ function App() {
               />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            <ToastContainer /> {/* Add ToastContainer */}
           </Layout>
         </CartProvider>
       </AuthProvider>

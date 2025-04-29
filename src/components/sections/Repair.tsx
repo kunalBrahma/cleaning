@@ -25,7 +25,7 @@ const Repair: React.FC = () => {
         />
     
         {/* Service Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {paintingServices.map((service) => (
             <ServiceCard key={service.id} service={service} index={0} />
           ))}

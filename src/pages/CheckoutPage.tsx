@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import {
   Form,
@@ -29,57 +31,49 @@ import Button from "@/components/ui/Button";
 
 // Define the checkout form schema with Zod
 const checkoutSchema = z.object({
-  // Contact Information
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
-
-  // Address Information
   addressLine1: z.string().min(1, "Address line 1 is required"),
   addressLine2: z.string().optional(),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   zipCode: z.string().min(5, "Zip code must be at least 5 characters"),
   country: z.string().min(1, "Country is required"),
-
-  // Payment Method
   paymentMethod: z.enum(["credit", "paypal", "cash"]),
-
-  // Credit Card Details (conditionally required)
   cardNumber: z
     .string()
     .optional()
-    .refine((val) => !val || val.replace(/\s/g, "").length === 16, {
-      message: "Card number must be 16 digits",
-    }),
+    .refine(
+      (val) => !val || val.replace(/\s/g, "").length === 16,
+      { message: "Card number must be 16 digits" }
+    ),
   cardExpiry: z
     .string()
     .optional()
-    .refine((val) => !val || /^\d{2}\/\d{2}$/.test(val), {
-      message: "Expiry date must be in MM/YY format",
-    }),
+    .refine(
+      (val) => !val || /^\d{2}\/\d{2}$/.test(val),
+      { message: "Expiry date must be in MM/YY format" }
+    ),
   cardCvv: z
     .string()
     .optional()
-    .refine((val) => !val || /^\d{3,4}$/.test(val), {
-      message: "CVV must be 3 or 4 digits",
-    }),
-
-  // Terms and Conditions
+    .refine(
+      (val) => !val || /^\d{3,4}$/.test(val),
+      { message: "CVV must be 3 or 4 digits" }
+    ),
   agreeTerms: z.literal(true, {
     errorMap: () => ({ message: "You must agree to the terms and conditions" }),
   }),
 });
 
-// Type inference based on schema
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
-  const { cartItems, clearCart } = useCart(); // Use cart context
+  const { cartItems, clearCart } = useCart();
 
-  // Form state with React Hook Form
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
@@ -92,8 +86,8 @@ const CheckoutPage = () => {
       city: "",
       state: "",
       zipCode: "",
-      country: "India", // Default to India
-      paymentMethod: "cash", // Default to cash for India context
+      country: "India",
+      paymentMethod: "cash",
       cardNumber: "",
       cardExpiry: "",
       cardCvv: "",
@@ -101,10 +95,8 @@ const CheckoutPage = () => {
     },
   });
 
-  // Get current payment method from form
   const watchPaymentMethod = form.watch("paymentMethod");
 
-  // Coupon and discount state
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -115,11 +107,16 @@ const CheckoutPage = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const tax = subtotal * 0.1; // 10% tax
-  const shipping = 5.99; // Standard shipping fee
-  const total = subtotal + tax + shipping - discount;
+  const calculateConvenienceFee = (subtotal: number) => {
+    if (subtotal < 500) {
+      return 39;
+    }
+    const increments = Math.floor(subtotal / 500);
+    return 39 + increments * 10;
+  };
+  const convenienceFee = calculateConvenienceFee(subtotal);
+  const total = subtotal + convenienceFee - discount;
 
-  // Available coupons (would normally come from API)
   const availableCoupons = [
     { code: "CLEAN10", discount: 10, type: "percentage" },
     { code: "SAVE20", discount: 20, type: "fixed" },
@@ -128,7 +125,6 @@ const CheckoutPage = () => {
 
   const applyCoupon = () => {
     setIsLoading(true);
-    // Simulate API call
     setTimeout(() => {
       const validCoupon = availableCoupons.find(
         (coupon) => coupon.code === couponCode.toUpperCase()
@@ -143,10 +139,19 @@ const CheckoutPage = () => {
         }
         setDiscount(discountAmount);
         setAppliedCoupon(validCoupon.code);
+        toast.success(`Coupon ${validCoupon.code} applied! Saved Rs. ${discountAmount.toFixed(2)}.`, {
+          position: "top-right",
+          autoClose: 3000,
+          className: "bg-green-500 text-white border-green-600",
+        });
       } else {
         setDiscount(0);
         setAppliedCoupon("");
-        alert("Invalid coupon code");
+        toast.error("Invalid coupon code.", {
+          position: "top-right",
+          autoClose: 3000,
+          className: "bg-red-500 text-white border-red-600",
+        });
       }
       setIsLoading(false);
     }, 1000);
@@ -156,58 +161,90 @@ const CheckoutPage = () => {
     setCouponCode("");
     setAppliedCoupon("");
     setDiscount(0);
+    toast.success("Coupon removed.", {
+      position: "top-right",
+      autoClose: 3000,
+      className: "bg-green-500 text-white border-green-600",
+    });
   };
 
   const onSubmit = (data: CheckoutFormValues) => {
-    const orderSummary = {
-      orderNumber: `ORD-${Math.floor(Math.random() * 1000000)}`,
-      customerName: `${data.firstName} ${data.lastName}`,
-      email: data.email,
-      phone: data.phone,
-      shippingAddress: {
-        line1: data.addressLine1,
-        line2: data.addressLine2 || "",
-        city: data.city,
-        state: data.state,
-        zipCode: data.zipCode,
-        country: data.country,
-      },
-      items: cartItems,
-      paymentMethod: data.paymentMethod,
-      subtotal,
-      tax,
-      shipping,
-      discount,
-      total,
-      orderDate: new Date().toISOString(),
-      status: "Confirmed",
-    };
+    console.log("Form submitted with data:", data); // Debug
+    try {
+      // Clear card fields for non-credit payments
+      if (data.paymentMethod !== "credit") {
+        data.cardNumber = undefined;
+        data.cardExpiry = undefined;
+        data.cardCvv = undefined;
+      }
 
-    // Save order to localStorage for DashboardPage
-    const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-    const updatedOrders = [...existingOrders, orderSummary];
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+      const orderSummary = {
+        orderNumber: `ORD-${Math.floor(Math.random() * 1000000)}`,
+        customerName: `${data.firstName} ${data.lastName}`,
+        email: data.email,
+        phone: data.phone,
+        shippingAddress: {
+          line1: data.addressLine1,
+          line2: data.addressLine2 || "",
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          country: data.country,
+        },
+        items: cartItems,
+        paymentMethod: data.paymentMethod,
+        subtotal,
+        convenienceFee,
+        discount,
+        total,
+        orderDate: new Date().toISOString(),
+        status: "Confirmed",
+      };
 
-    // Store in sessionStorage for ThankYouPage
-    sessionStorage.setItem("orderSummary", JSON.stringify(orderSummary));
+      console.log("Order summary created:", orderSummary); // Debug
 
-    // Clear cart after successful order
-    clearCart();
+      // Save to localStorage
+      try {
+        const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+        localStorage.setItem("orders", JSON.stringify([...existingOrders, orderSummary]));
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+      }
 
-    if (data.paymentMethod === "cash") {
-      // Redirect to Thank You page
+      // Store in sessionStorage
+      try {
+        sessionStorage.setItem("orderSummary", JSON.stringify(orderSummary));
+      } catch (error) {
+        console.error("Error saving to sessionStorage:", error);
+      }
+
+      // Clear cart
+      console.log("Clearing cart"); // Debug
+      clearCart();
+
+      // Show success toast only once
+      if (!sessionStorage.getItem("orderPlacedToast")) {
+        toast.success("Order placed successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          className: "bg-green-500 text-white border-green-600",
+        });
+        sessionStorage.setItem("orderPlacedToast", "true");
+      }
+
+      console.log("Navigating to /thank-you"); // Debug
       navigate("/thank-you", { state: { orderSummary } });
-    } else {
-      // Show success message for other payment methods
-      navigate("/thank-you", { state: { orderSummary } });
-      // alert("Order has been placed successfully!");
+    } catch (error) {
+      console.error("Error in onSubmit:", error);
+      toast.error("Failed to place order. Please try again.", {
+        position: "top-right",
+        autoClose: 3000,
+        className: "bg-red-500 text-white border-red-600",
+      });
     }
   };
 
-  // List of countries
   const countries = ["India"];
-
-  // List of Indian states
   const states = [
     "Andhra Pradesh",
     "Arunachal Pradesh",
@@ -248,21 +285,26 @@ const CheckoutPage = () => {
           <div className="text-center py-12">
             <h2 className="text-xl font-medium mb-4">Your cart is empty</h2>
             <Button>
-              <a href="/services">Browse Services</a>
+              <a href="/cleaning">Browse Services</a>
             </Button>
           </div>
         ) : (
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form
+              onSubmit={(e) => {
+                form.handleSubmit(onSubmit)(e).catch(() => {
+                  console.log("Form validation errors:", form.formState.errors);
+                });
+              }}
+              className="space-y-8"
+            >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column - Customer Info */}
                 <div className="lg:col-span-2 space-y-6">
                   {/* Contact Information */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">
-                        Contact Information
-                      </CardTitle>
+                      <CardTitle className="text-lg">Contact Information</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -293,7 +335,6 @@ const CheckoutPage = () => {
                           )}
                         />
                       </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -338,16 +379,12 @@ const CheckoutPage = () => {
                           <FormItem>
                             <FormLabel>Address Line 1</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="Street address, P.O. box"
-                                {...field}
-                              />
+                              <Input placeholder="Street address, P.O. box" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="addressLine2"
@@ -364,7 +401,6 @@ const CheckoutPage = () => {
                           </FormItem>
                         )}
                       />
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -379,17 +415,13 @@ const CheckoutPage = () => {
                             </FormItem>
                           )}
                         />
-
                         <FormField
                           control={form.control}
                           name="state"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>State/Province</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a state" />
@@ -408,7 +440,6 @@ const CheckoutPage = () => {
                           )}
                         />
                       </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -423,17 +454,13 @@ const CheckoutPage = () => {
                             </FormItem>
                           )}
                         />
-
                         <FormField
                           control={form.control}
                           name="country"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Country</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a country" />
@@ -474,42 +501,25 @@ const CheckoutPage = () => {
                               >
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                   <FormControl>
-                                    <RadioGroupItem
-                                      value="credit"
-                                      id="credit"
-                                    />
+                                    <RadioGroupItem value="credit" id="credit" />
                                   </FormControl>
-                                  <FormLabel
-                                    className="font-normal"
-                                    htmlFor="credit"
-                                  >
+                                  <FormLabel className="font-normal" htmlFor="credit">
                                     Credit/Debit Card
                                   </FormLabel>
                                 </FormItem>
-
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                   <FormControl>
-                                    <RadioGroupItem
-                                      value="paypal"
-                                      id="paypal"
-                                    />
+                                    <RadioGroupItem value="paypal" id="paypal" />
                                   </FormControl>
-                                  <FormLabel
-                                    className="font-normal"
-                                    htmlFor="paypal"
-                                  >
+                                  <FormLabel className="font-normal" htmlFor="paypal">
                                     PayPal
                                   </FormLabel>
                                 </FormItem>
-
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                   <FormControl>
                                     <RadioGroupItem value="cash" id="cash" />
                                   </FormControl>
-                                  <FormLabel
-                                    className="font-normal"
-                                    htmlFor="cash"
-                                  >
+                                  <FormLabel className="font-normal" htmlFor="cash">
                                     Cash on Delivery
                                   </FormLabel>
                                 </FormItem>
@@ -519,7 +529,6 @@ const CheckoutPage = () => {
                           </FormItem>
                         )}
                       />
-
                       {watchPaymentMethod === "credit" && (
                         <div className="mt-6 space-y-4 border p-4 rounded-md">
                           <FormField
@@ -533,11 +542,7 @@ const CheckoutPage = () => {
                                     placeholder="1234 5678 9012 3456"
                                     {...field}
                                     onChange={(e) => {
-                                      // Format card number with spaces every 4 digits
-                                      const value = e.target.value.replace(
-                                        /\s/g,
-                                        ""
-                                      );
+                                      const value = e.target.value.replace(/\s/g, "");
                                       const formattedValue = value
                                         .replace(/\D/g, "")
                                         .replace(/(\d{4})(?=\d)/g, "$1 ");
@@ -549,7 +554,6 @@ const CheckoutPage = () => {
                               </FormItem>
                             )}
                           />
-
                           <div className="grid grid-cols-2 gap-4">
                             <FormField
                               control={form.control}
@@ -562,17 +566,10 @@ const CheckoutPage = () => {
                                       placeholder="MM/YY"
                                       {...field}
                                       onChange={(e) => {
-                                        // Format expiry date with slash after month
-                                        const value = e.target.value.replace(
-                                          /\D/g,
-                                          ""
-                                        );
+                                        const value = e.target.value.replace(/\D/g, "");
                                         if (value.length > 2) {
                                           field.onChange(
-                                            `${value.slice(0, 2)}/${value.slice(
-                                              2,
-                                              4
-                                            )}`
+                                            `${value.slice(0, 2)}/${value.slice(2, 4)}`
                                           );
                                         } else {
                                           field.onChange(value);
@@ -585,7 +582,6 @@ const CheckoutPage = () => {
                                 </FormItem>
                               )}
                             />
-
                             <FormField
                               control={form.control}
                               name="cardCvv"
@@ -598,11 +594,7 @@ const CheckoutPage = () => {
                                       type="password"
                                       {...field}
                                       onChange={(e) => {
-                                        // Allow only numbers and limit to 4 digits
-                                        const value = e.target.value.replace(
-                                          /\D/g,
-                                          ""
-                                        );
+                                        const value = e.target.value.replace(/\D/g, "");
                                         field.onChange(value.slice(0, 4));
                                       }}
                                       maxLength={4}
@@ -626,82 +618,81 @@ const CheckoutPage = () => {
                       <CardTitle className="text-lg">Order Summary</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="space-y-2">
+                      <div className="space-y-4">
                         {cartItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex justify-between items-center"
-                          >
-                            <span>
-                              {item.name} × {item.quantity}
-                            </span>
-                            <span>
-                              ${(item.price * item.quantity).toFixed(2)}
-                            </span>
+                          <div key={item.id} className="flex items-center space-x-4 border-b pb-4">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-medium">{item.name}</h4>
+                              <p className="text-rose-600 font-semibold">
+                                Rs. {(item.price * item.quantity).toFixed(2)} (x{item.quantity})
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
-
                       <div className="border-t pt-4 space-y-2">
                         <div className="flex justify-between">
                           <span>Subtotal</span>
-                          <span>${subtotal.toFixed(2)}</span>
+                          <span>Rs. {subtotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Tax (10%)</span>
-                          <span>${tax.toFixed(2)}</span>
+                          <span>Convenience Fee</span>
+                          <span>Rs. {convenienceFee.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Shipping</span>
-                          <span>${shipping.toFixed(2)}</span>
-                        </div>
-
-                        {/* Coupon Section */}
-                        <div className="pt-2">
-                          {appliedCoupon ? (
-                            <div className="flex justify-between items-center bg-green-50 p-2 rounded">
-                              <div className="text-green-700">
-                                Coupon: {appliedCoupon} (-
-                                ${discount.toFixed(2)})
-                              </div>
-                              <Button
-                                size="sm"
-                                className="text-red-500 hover:text-red-700"
-                                onClick={removeCoupon}
-                                type="button"
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Input
-                                placeholder="Coupon code"
-                                value={couponCode}
-                                onChange={(e) => setCouponCode(e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                type="button"
-                                onClick={applyCoupon}
-                                disabled={!couponCode || isLoading}
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  "Apply"
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-
+                        {discount > 0 && (
+                          <div className="flex justify-between text-green-600">
+                            <span>Discount ({appliedCoupon})</span>
+                            <span>-Rs. {discount.toFixed(2)}</span>
+                          </div>
+                        )}
                         <div className="border-t pt-4 flex justify-between font-semibold text-lg">
                           <span>Total</span>
-                          <span>${total.toFixed(2)}</span>
+                          <span className="text-rose-600">Rs. {total.toFixed(2)}</span>
                         </div>
                       </div>
-
+                      <div className="pt-2">
+                        {appliedCoupon ? (
+                          <div className="flex justify-between items-center bg-green-50 p-2 rounded">
+                            <div className="text-green-700">
+                              Coupon: {appliedCoupon} (-Rs. {discount.toFixed(2)})
+                            </div>
+                            <Button
+                              size="sm"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={removeCoupon}
+                              type="button"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Coupon code"
+                              value={couponCode}
+                              onChange={(e) => setCouponCode(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              onClick={applyCoupon}
+                              disabled={!couponCode || isLoading}
+                              className="bg-sky-500 hover:bg-sky-600"
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Apply"
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                       <FormField
                         control={form.control}
                         name="agreeTerms"
@@ -716,10 +707,7 @@ const CheckoutPage = () => {
                             <div className="space-y-1 leading-none">
                               <FormLabel>
                                 I agree to the{" "}
-                                <a
-                                  href="#"
-                                  className="text-primary underline"
-                                >
+                                <a href="/terms" className="text-sky-500 underline">
                                   Terms and Conditions
                                 </a>
                               </FormLabel>
@@ -728,10 +716,9 @@ const CheckoutPage = () => {
                           </FormItem>
                         )}
                       />
-
                       <Button
                         type="submit"
-                        className="w-full mt-4"
+                        className="w-full mt-4 bg-sky-500 hover:bg-sky-600"
                         size="lg"
                         disabled={isLoading}
                       >

@@ -4,9 +4,10 @@ import { CheckCircle, ArrowLeft, MapPin, Calendar, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 interface OrderItem {
-  id: number;
+  id: string;
   name: string;
   price: number;
+  image: string;
   quantity: number;
 }
 
@@ -28,16 +29,16 @@ interface OrderSummary {
   items: OrderItem[];
   paymentMethod: string;
   subtotal: number;
-  tax: number;
-  shipping: number;
+  convenienceFee: number;
   discount: number;
   total: number;
   orderDate: string;
+  status: string;
 }
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-IN", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -47,15 +48,14 @@ const formatDate = (dateString: string) => {
 const getEstimatedDelivery = () => {
   const today = new Date();
   const deliveryDate = new Date(today);
-  deliveryDate.setDate(today.getDate() + 3); // 3 days from now
-
+  deliveryDate.setDate(today.getDate() + 3);
   return formatDate(deliveryDate.toISOString());
 };
 
 const ThankYouPage = () => {
   const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
   const [showAnimation, setShowAnimation] = useState(false);
-  const location = useLocation(); // Get location to access state
+  const location = useLocation();
 
   useEffect(() => {
     // Try to get order summary from location.state first
@@ -64,21 +64,25 @@ const ThankYouPage = () => {
     if (stateOrderSummary) {
       setOrderSummary(stateOrderSummary);
     } else {
-      // Fallback to sessionStorage if state is not available
+      // Fallback to sessionStorage
       const orderData = sessionStorage.getItem("orderSummary");
       if (orderData) {
-        setOrderSummary(JSON.parse(orderData));
+        try {
+          setOrderSummary(JSON.parse(orderData));
+        } catch (error) {
+          console.error("Error parsing orderSummary from sessionStorage:", error);
+        }
       }
     }
 
-    // Trigger animation after a short delay
+    // Trigger animation
     setTimeout(() => setShowAnimation(true), 100);
 
-    // Optional: Clear sessionStorage after loading to prevent stale data
+    // Clear sessionStorage to prevent stale data
     return () => {
       sessionStorage.removeItem("orderSummary");
     };
-  }, [location.state]);
+  }, [location.state]); // Dependency on location.state
 
   if (!orderSummary) {
     return (
@@ -88,7 +92,7 @@ const ThankYouPage = () => {
           <p className="mb-6">Please complete checkout to see your order details.</p>
           <Link
             to="/checkout"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-sky-500 text-white rounded-md hover:bg-sky-600 transition-colors"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Return to Checkout
@@ -107,12 +111,11 @@ const ThankYouPage = () => {
       address.zipCode,
       address.country,
     ].filter(Boolean);
-
     return parts.join(", ");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 mt-[150px] py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Success Animation */}
         <div className="text-center mb-8">
@@ -140,7 +143,7 @@ const ThankYouPage = () => {
             }`}
           >
             Your order has been successfully placed. We've sent a confirmation email to{" "}
-            {orderSummary.email} with your order details.
+            <span className="font-medium">{orderSummary.email}</span> with your order details.
           </p>
         </div>
 
@@ -167,7 +170,6 @@ const ThankYouPage = () => {
                     <p>{formatDate(orderSummary.orderDate)}</p>
                   </div>
                 </div>
-
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Shipping Address</h3>
                   <div className="flex items-start">
@@ -175,7 +177,6 @@ const ThankYouPage = () => {
                     <p className="text-gray-800">{formatAddress(orderSummary.shippingAddress)}</p>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-1">Estimated Delivery</h3>
@@ -191,7 +192,6 @@ const ThankYouPage = () => {
                     </p>
                   </div>
                 </div>
-
                 <div className="border-t pt-4">
                   <h3 className="font-medium mb-2">Order Status</h3>
                   <div className="relative pt-1">
@@ -234,12 +234,19 @@ const ThankYouPage = () => {
               <CardContent>
                 <div className="space-y-3">
                   {orderSummary.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-2 border-b last:border-0">
-                      <div>
+                    <div key={item.id} className="flex items-center space-x-4 border-b pb-3 last:border-0">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                      <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
                         <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                       </div>
-                      <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-medium text-rose-600">
+                        Rs. {(item.price * item.quantity).toFixed(2)}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -256,48 +263,42 @@ const ThankYouPage = () => {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span>${orderSummary.subtotal.toFixed(2)}</span>
+                  <span>Rs. {orderSummary.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tax</span>
-                  <span>${orderSummary.tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Shipping</span>
-                  <span>${orderSummary.shipping.toFixed(2)}</span>
+                  <span className="text-gray-600">Convenience Fee</span>
+                  <span>Rs. {orderSummary.convenienceFee.toFixed(2)}</span>
                 </div>
                 {orderSummary.discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>-${orderSummary.discount.toFixed(2)}</span>
+                    <span>-Rs. {orderSummary.discount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="border-t pt-3 mt-3">
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>${orderSummary.total.toFixed(2)}</span>
+                    <span className="text-rose-600">Rs. {orderSummary.total.toFixed(2)}</span>
                   </div>
                 </div>
-
                 <div className="pt-4">
                   <Link
-                    to="/"
-                    className="inline-flex w-full justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    to="/cleaning"
+                    className="inline-flex w-full justify-center items-center px-4 py-2 bg-sky-500 text-white rounded-md hover:bg-sky-600 transition-colors"
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Return to Shopping
+                    Continue Shopping
                   </Link>
                 </div>
               </CardContent>
             </Card>
-
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h3 className="font-medium text-yellow-800 mb-2">Need Help?</h3>
               <p className="text-sm text-yellow-700 mb-2">
                 For any questions or issues with your order, please contact our customer service.
               </p>
-              <a href="#" className="text-sm font-medium text-yellow-800 hover:underline">
-                support@serviceprovider.com
+              <a href="mailto:support@cityhomeservice.com" className="text-sm font-medium text-yellow-800 hover:underline">
+                support@cityhomeservice.com
               </a>
             </div>
           </div>

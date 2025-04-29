@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { AuthDialog } from "../ui/AuthDailog";
 import { useAuth } from "@/contexts/AuthContext";
 import CartModal from "../ui/CartModal";
+import { useCart } from "@/contexts/CartContext";
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,23 +16,8 @@ const Navbar: React.FC = () => {
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Home Cleaning Service",
-      price: 59.99,
-      image: "/api/placeholder/80/80",
-      quantity: 1,
-    },
-    {
-      id: 2,
-      name: "Pest Control Service",
-      price: 89.99,
-      image: "/api/placeholder/80/80",
-      quantity: 1,
-    },
-  ]);
-
+  
+  const { cartItems, removeFromCart, updateQuantity } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
 
   const cartModalRef = useRef<HTMLDivElement>(null);
@@ -163,20 +149,6 @@ const Navbar: React.FC = () => {
 
   const closeCartModal = () => {
     setShowCartModal(false);
-  };
-
-  const removeFromCart = (itemId: number) => {
-    setCartItems(cartItems.filter((item) => item.id !== itemId));
-  };
-
-  const updateQuantity = (itemId: number, newQuantity: number) => {
-    if (newQuantity < 1) return;
-
-    setCartItems(
-      cartItems.map((item) =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
   };
 
   const calculateTotal = () => {

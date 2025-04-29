@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import Button from "./Button";
 
 interface CartItem {
-  id: number;
+  id: string; 
   name: string;
   price: number;
   image: string;
@@ -16,8 +16,8 @@ interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
-  removeFromCart: (itemId: number) => void;
-  updateQuantity: (itemId: number, newQuantity: number) => void;
+  removeFromCart: (itemId: string) => void; // Changed from number to string
+  updateQuantity: (itemId: string, newQuantity: number) => void; // Changed from number to string
   calculateTotal: () => string;
 }
 
@@ -94,7 +94,7 @@ const CartModal: React.FC<CartModalProps> = ({
                 />
                 <div className="flex-1">
                   <h4 className="font-medium">{item.name}</h4>
-                  <p className="text-blue-600 font-semibold">${item.price}</p>
+                  <p className="text-blue-600 font-semibold">Rs {item.price}</p>
                   <div className="flex items-center mt-2">
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}

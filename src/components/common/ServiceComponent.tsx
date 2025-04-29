@@ -14,6 +14,8 @@ import {
 import { gsap } from "gsap";
 import { FaCheck, FaTimesCircle, FaClipboardList } from "react-icons/fa";
 import { useCart } from "@/contexts/CartContext";
+import { toast } from "react-toastify"; // Import react-toastify
+import "react-toastify/dist/ReactToastify.css"; // Import toastify CSS
 
 interface Service {
   id: string;
@@ -103,13 +105,25 @@ const ServiceComponent = ({
   };
 
   const handleAddToCart = (service: Service) => {
+    console.log("Adding to cart:", service); // Debug log
     addToCart({
       id: service.id,
       name: service.title,
-      price: service.price,
+      price: Number(service.price), // Ensure price is a number
       image: service.image,
       quantity: 1,
     });
+    toast.success(`${service.title} has been added to your cart.`, {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      theme: "light",
+      className: "bg-sky-400 text-white border-rose-800",
+    });
+    console.log("Toast triggered for:", service.title); // Debug log
   };
 
   return (
@@ -166,14 +180,14 @@ const ServiceComponent = ({
                   >
                     View More Details
                   </button>
-                  <Button
+                  {/* <Button
                     className="w-full bg-sky-500 hover:bg-sky-600 transition-colors"
                     onClick={() => openWhatsApp(service.whatsappMessage)}
                   >
                     Book Now
-                  </Button>
+                  </Button> */}
                   <Button
-                    className="w-full bg-green-500 hover:bg-green-600 transition-colors"
+                    className="w-full"
                     onClick={() => handleAddToCart(service)}
                   >
                     Add to Cart

@@ -16,10 +16,19 @@ const CartPage = () => {
       .toFixed(2);
   };
 
+  const calculateConvenienceFee = () => {
+    const subtotal = parseFloat(calculateSubtotal());
+    if (subtotal < 500) {
+      return 39;
+    }
+    const increments = Math.floor(subtotal / 500);
+    return 39 + increments * 10;
+  };
+
   const calculateTotal = () => {
     const subtotal = parseFloat(calculateSubtotal());
-    const tax = subtotal * 0.1; // Example 10% tax
-    return (subtotal + tax).toFixed(2);
+    const convenienceFee = calculateConvenienceFee();
+    return (subtotal + convenienceFee).toFixed(2);
   };
 
   return (
@@ -115,7 +124,7 @@ const CartPage = () => {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-4">
+              <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-[150px]">
                 <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
                 <div className="space-y-4">
                   <div className="flex justify-between">
@@ -123,10 +132,8 @@ const CartPage = () => {
                     <span>Rs. {calculateSubtotal()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Tax (10%)</span>
-                    <span>
-                      Rs. {(parseFloat(calculateSubtotal()) * 0.1).toFixed(2)}
-                    </span>
+                    <span>Convenience Fee</span>
+                    <span>Rs. {calculateConvenienceFee().toFixed(2)}</span>
                   </div>
                   <div className="border-t pt-4 flex justify-between font-semibold text-lg">
                     <span>Total</span>
