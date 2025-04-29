@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import { gsap } from "gsap";
 import { FaCheck, FaTimesCircle, FaClipboardList } from "react-icons/fa";
+import { useCart } from "@/contexts/CartContext";
 
 interface Service {
+  id: string;
   title: string;
-  price: string;
-  originalPrice: string;
+  price: number;
   image: string;
   features: {
     label: string;
@@ -66,6 +67,7 @@ const ServiceComponent = ({
 }: ServiceComponentProps) => {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     if (selectedService && dialogRef.current) {
@@ -100,6 +102,16 @@ const ServiceComponent = ({
     );
   };
 
+  const handleAddToCart = (service: Service) => {
+    addToCart({
+      id: service.id,
+      name: service.title,
+      price: service.price,
+      image: service.image,
+      quantity: 1,
+    });
+  };
+
   return (
     <section
       id={id}
@@ -132,11 +144,8 @@ const ServiceComponent = ({
                         {service.title}
                       </h3>
                       <div className="flex items-end gap-2 mt-2">
-                        <span className="text-2xl  text-rose-600 font-bold">
-                          {service.price}
-                        </span>
-                        <span className="text-sm text-gray-500 line-through">
-                          {service.originalPrice}
+                        <span className="text-2xl text-rose-600 font-bold">
+                          Rs. {service.price}
                         </span>
                       </div>
                     </div>
@@ -162,6 +171,12 @@ const ServiceComponent = ({
                     onClick={() => openWhatsApp(service.whatsappMessage)}
                   >
                     Book Now
+                  </Button>
+                  <Button
+                    className="w-full bg-green-500 hover:bg-green-600 transition-colors"
+                    onClick={() => handleAddToCart(service)}
+                  >
+                    Add to Cart
                   </Button>
                 </CardFooter>
               </div>
@@ -202,7 +217,6 @@ const ServiceComponent = ({
         </div>
       </Container>
 
-      {/* Modal for showing service details */}
       {selectedService && (
         <Dialog open={!!selectedService} onOpenChange={handleCloseDialog}>
           <DialogContent
@@ -220,10 +234,7 @@ const ServiceComponent = ({
               </DialogTitle>
               <div className="flex items-end gap-2 mb-4 pt-2">
                 <span className="text-2xl font-bold text-rose-600">
-                  {selectedService.price}
-                </span>
-                <span className="text-sm text-gray-500 line-through">
-                  {selectedService.originalPrice}
+                  Rs. {selectedService.price}
                 </span>
               </div>
             </DialogHeader>
@@ -237,7 +248,7 @@ const ServiceComponent = ({
                   <ul className="space-y-2 pl-4">
                     {selectedService.features.map((feature, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <FaCheck className="text-green-500" />{" "}
+                        <FaCheck className="text-green-500" />
                         <span>{feature.label}</span>
                       </li>
                     ))}
@@ -266,7 +277,7 @@ const ServiceComponent = ({
                   <ul className="space-y-2 pl-4">
                     {selectedService.exclusions.map((exclude, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <FaTimesCircle className="text-red-500" />{" "}
+                        <FaTimesCircle className="text-red-500" />
                         <span>{exclude.label}</span>
                       </li>
                     ))}
@@ -280,7 +291,7 @@ const ServiceComponent = ({
                   <ul className="space-y-2 pl-4">
                     {selectedService.requirements.map((require, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <FaClipboardList className="text-sky-500" />{" "}
+                        <FaClipboardList className="text-sky-500" />
                         <span>{require.label}</span>
                       </li>
                     ))}
@@ -298,6 +309,15 @@ const ServiceComponent = ({
                 }}
               >
                 Book This Service
+              </Button>
+              <Button
+                className="flex-1 bg-green-500 hover:bg-green-600"
+                onClick={() => {
+                  handleAddToCart(selectedService);
+                  handleCloseDialog();
+                }}
+              >
+                Add to Cart
               </Button>
               <Button
                 variant="outline"

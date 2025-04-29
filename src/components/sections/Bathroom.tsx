@@ -1,5 +1,4 @@
 import ServiceComponent from "../common/ServiceComponent";
-
 import {
   FaCheck,
   FaClock,
@@ -23,9 +22,9 @@ const whatsappNumber = "918638167421";
 
 const services = [
   {
+    id: "BTN001",
     title: "Normal Bathroom Cleaning",
-    price: "₹458",
-    originalPrice: "₹419",
+    price: 458,
     image:
       "https://images.unsplash.com/photo-1571712707792-82c3cc4243f5?q=80&w=2089&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
@@ -62,9 +61,9 @@ const services = [
       "Hi, I'd like to book Normal Bathroom Cleaning (₹458). Please provide available slots.",
   },
   {
+    id: "BTD002",
     title: "Bathroom Deep Cleaning",
-    price: "₹548",
-    originalPrice: "₹499",
+    price: 548,
     image:
       "https://img.freepik.com/free-photo/man-doing-professional-home-cleaning-service_23-2150358986.jpg?t=st=1745862096~exp=1745865696~hmac=d00a582f8afb8de2d3e06015fb303b44e31731e3b4ce3484b5354756afc13a73&w=996",
     features: [
@@ -94,7 +93,6 @@ const services = [
         desc: "Service Time",
       },
     ],
-
     requirements: [
       { label: "Ladder (if needed)", icon: null },
       { label: "Bucket & mug provided by customer", icon: null },
@@ -106,9 +104,9 @@ const services = [
       "Hi, I'd like to book Bathroom Deep Cleaning (₹548). Please provide available slots.",
   },
   {
+    id: "BTP003",
     title: "Premium Deep Cleaning",
-    price: "₹618",
-    originalPrice: "₹559",
+    price: 618,
     image:
       "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
@@ -130,7 +128,6 @@ const services = [
         desc: "Premium",
       },
     ],
-
     requirements: [
       { label: "Ladder (if needed)", icon: null },
       { label: "Bucket & mug provided by customer", icon: null },

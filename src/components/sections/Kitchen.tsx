@@ -21,9 +21,10 @@ const whatsappNumber = "918638167421";
 
 const services = [
   {
+    id: "KIT001",
     title: "Empty Kitchen Slab Cleaning",
-    price: "₹849",
-    originalPrice: "₹799",
+    price: 849,
+    
     image: "https://images.unsplash.com/photo-1600585152220-90363fe7e115?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
       {
@@ -71,9 +72,9 @@ const services = [
     whatsappMessage: "Hi, I'd like to book Empty Kitchen Slab Cleaning (₹849). Please provide available slots."
   },
   {
+    id: "KIT002",
     title: "Full Kitchen Slab Cleaning",
-    price: "₹949",
-    originalPrice: "₹899",
+    price: 949,
     image: "https://images.unsplash.com/photo-1556909114-44e1cd5b1b07?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
       {
@@ -110,9 +111,10 @@ const services = [
     whatsappMessage: "Hi, I'd like to book Full Kitchen Slab Cleaning (₹949). Please provide available slots."
   },
   {
+    id: "KIT003",
     title: "Empty Modular Kitchen Cleaning",
-    price: "₹1,108",
-    originalPrice: "₹1,049",
+    price: 1108,
+   
     image: "https://images.unsplash.com/photo-1600121848594-d8644e57abab?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
       {
@@ -159,9 +161,10 @@ const services = [
     whatsappMessage: "Hi, I'd like to book Empty Modular Kitchen Cleaning (₹1,108). Please provide available slots."
   },
   {
+    id: "KIT004",
     title: "Full Modular Kitchen Cleaning",
-    price: "₹1,558",
-    originalPrice: "₹1,499",
+    price: 1558,
+   
     image: "https://images.unsplash.com/photo-1600566752227-8f3e8a57d521?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
       {

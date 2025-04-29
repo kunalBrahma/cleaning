@@ -14,7 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="flex-grow">
         {children}
       </main>
-      <WhatsApp/>
+      <WhatsApp />
       <Footer />
     </div>
   );
