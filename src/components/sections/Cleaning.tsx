@@ -49,7 +49,7 @@ const Cleaning: React.FC = () => {
 
         {/* Service Cards */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {servicesByCategory[activeCategory]?.slice(0, 5).map((service) => (
+          {servicesByCategory[activeCategory]?.slice(0, 6).map((service) => (
             <ServiceCard key={service.id} service={service} index={0} />
           ))}
         </div>

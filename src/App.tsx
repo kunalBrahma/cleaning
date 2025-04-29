@@ -23,6 +23,9 @@ import BookingPage from "./pages/BookingPage";
 import ContactPage from "./pages/ContactPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsAncConditionsPage from "./pages/TermsAncConditionsPage";
+import SofaCleaninngPage from "./pages/SofaCleaninngPage";
+import FullHomeCleaningPage from "./pages/FullHomeCleaningPage";
+import EmptyHomeCleaningPage from "./pages/EmptyHomeCleaningPage";
 
 function HomePage() {
   // This component renders all your home sections
@@ -60,6 +63,18 @@ function App() {
           <Route
             path="/cleaning/kitchen-chimney"
             element={<KitchenCleaningPage />}
+          />
+          <Route
+            path="/cleaning/sofa-cleaning"
+            element={<SofaCleaninngPage />}
+          />
+                    <Route
+            path="/cleaning/full-home"
+            element={<FullHomeCleaningPage />}
+          />
+                    <Route
+            path="/cleaning/empty-home"
+            element={<EmptyHomeCleaningPage />}
           />
           <Route path="/painting" element={<PaintingServicePage />} />
           <Route path="/pest-control" element={<PestControlPage />} />

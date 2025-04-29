@@ -19,8 +19,8 @@ export const services: Service[] = [
     icon: "Sofa",
     price: "From $69",
     category: "Cleaning Services",
-    subCategory: "",
-    path:""
+    subCategory: "Sofa Cleaning",
+    path:"/cleaning/sofa-cleaning"
   },
   {
     id: "carpet-cleaning",
@@ -30,7 +30,7 @@ export const services: Service[] = [
     price: "From $59",
     category: "Cleaning Services",
     subCategory: "",
-    path:""
+    path:"/cleaning/carpet-cleaning"
   },
   {
     id: "kitchen-chimney",
@@ -50,9 +50,20 @@ export const services: Service[] = [
     price: "From $149",
     category: "Cleaning Services",
     subCategory: "",
-    path:""
+    path:"/cleaning/full-home"
   },
 
+
+  {
+    id: "empty-home",
+    name: "Empty Home Cleaning",
+    description: "Comprehensive cleaning service for your entire home.",
+    icon: "Home",
+    price: "From $149",
+    category: "Cleaning Services",
+    subCategory: "",
+    path:"/cleaning/empty-home"
+  },
   // Subcategory services for Bathroom Cleaning
   {
     id: "normal-cleaning",

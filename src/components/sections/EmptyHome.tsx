@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { gsap } from "gsap";
 import { FaCheck, FaTimesCircle, FaClipboardList } from "react-icons/fa";
+import {
+  FaClock,
+  FaTools,
+  FaCheckCircle,
+  FaThLarge,
+  FaShieldAlt,
+} from "react-icons/fa";
 
 interface Service {
   title: string;
@@ -22,7 +29,7 @@ interface Service {
   features: {
     label: string;
     icon: React.ReactNode;
-    desc: string;
+    desc: string | null;
   }[];
   requirements: {
     label: string;
@@ -34,36 +41,110 @@ interface Service {
   }[];
   popular: boolean;
   whatsappMessage: string;
+  pricing: {
+    bhk: string;
+    price: string;
+    time: string;
+  }[];
 }
 
-interface ServiceComponentProps {
-  services: Service[];
-  whatsappNumber: string;
-  id: string;
-  backgroundImage: string;
-  title: string;
-  subtitle: string;
-  serviceDetails: {
-    includes: {
-      icon: React.ReactNode;
-      label: string;
-    }[];
-    notes: {
-      icon: React.ReactNode;
-      label: string;
-    }[];
-  };
-}
+const whatsappNumber = "918638167421";
 
-const ServiceComponent = ({
-  services,
-  whatsappNumber,
-  id,
-  backgroundImage,
-  title,
-  subtitle,
-  serviceDetails,
-}: ServiceComponentProps) => {
+const pricingTable = [
+  { bhk: "1BHK", normal: 1999, deep: 2599, time: "2-4 Hours" },
+  { bhk: "2BHK", normal: 2399, deep: 3299, time: "3-5 Hours" },
+  { bhk: "3BHK", normal: 3499, deep: 4399, time: "4-7 Hours" },
+  { bhk: "4BHK", normal: 4499, deep: 5899, time: "7-10 Hours" },
+  { bhk: "5BHK", normal: 5599, deep: 8599, time: "9-11 Hours" },
+];
+
+const services: Service[] = [
+  {
+    title: "Empty Home Normal Cleaning",
+    price: "From ₹1999",
+    originalPrice: "₹2499",
+    image:
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
+    features: [
+      { label: "Complete floor cleaning", icon: <FaThLarge />, desc: null },
+      { label: "Wall and ceiling dusting", icon: <FaShieldAlt />, desc: null },
+      { label: "Window frames cleaning", icon: <FaCheckCircle />, desc: null },
+      { label: "Basic bathroom cleaning", icon: <FaTools />, desc: null },
+    ],
+    pricing: pricingTable.map(({ bhk, normal, time }) => ({
+      bhk,
+      price: `₹${normal}`,
+      time,
+    })),
+    requirements: [
+      { label: "Empty property with no furniture", icon: null },
+      { label: "Water and electricity access", icon: null },
+    ],
+    exclusions: [{ label: "Construction debris removal", icon: null }],
+    popular: false,
+    whatsappMessage:
+      "Hi, I'd like to book Empty Home Normal Cleaning. Please share available slots.",
+  },
+  {
+    title: "Empty Home Deep Cleaning",
+    price: "From ₹2599",
+    originalPrice: "₹3299",
+    image:
+      "https://images.unsplash.com/photo-1581579185169-1f31b9d38f59?q=80&w=2070&auto=format&fit=crop",
+    features: [
+      { label: "Everything in Normal Cleaning", icon: <FaCheckCircle />, desc: null },
+      { label: "Deep grout and tile cleaning", icon: <FaShieldAlt />, desc: null },
+      { label: "Cabinet interior cleaning", icon: <FaShieldAlt />, desc: null },
+      { label: "Light fixture cleaning", icon: <FaTools />, desc: null },
+    ],
+    pricing: pricingTable.map(({ bhk, deep, time }) => ({
+      bhk,
+      price: `₹${deep}`,
+      time,
+    })),
+    requirements: [
+      { label: "Empty property with no furniture", icon: null },
+      { label: "Water and electricity access", icon: null },
+    ],
+    exclusions: [{ label: "Paint or stain removal", icon: null }],
+    popular: true,
+    whatsappMessage:
+      "Hi, I'd like to book Empty Home Deep Cleaning. Please share available slots.",
+  },
+];
+
+const serviceDetails = {
+  includes: [
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Thorough cleaning of empty properties",
+    },
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Special attention to corners and hard-to-reach areas",
+    },
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Sanitization of all surfaces",
+    },
+  ],
+  notes: [
+    {
+      icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
+      label: "Service duration: 2-11 hours depending on property size",
+    },
+    {
+      icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
+      label: "Ideal for post-construction or pre-move-in cleaning",
+    },
+    {
+      icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
+      label: "Click 'Book Now' to schedule your service",
+    },
+  ],
+};
+
+const EmptyHome = () => {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -102,16 +183,20 @@ const ServiceComponent = ({
 
   return (
     <section
-      id={id}
+      id="empty-home-cleaning"
       className="relative py-24 bg-cover bg-fixed bg-center overflow-hidden"
       style={{
-        backgroundImage: `url('${backgroundImage}')`,
+        backgroundImage: "url('/banner.webp')",
       }}
     >
       <Container className="py-12">
-        <SectionHeading title={title} subtitle={subtitle} center={true} />
+        <SectionHeading
+          title="Professional Empty Home Cleaning Services"
+          subtitle="Perfect for post-construction or pre-move-in cleaning - get your empty property spotless"
+          center={true}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-8">
           {services.map((service, index) => (
             <Card
               key={index}
@@ -132,7 +217,7 @@ const ServiceComponent = ({
                         {service.title}
                       </h3>
                       <div className="flex items-end gap-2 mt-2">
-                        <span className="text-2xl  text-rose-600 font-bold">
+                        <span className="text-2xl sm:text-3xl text-rose-600 font-bold">
                           {service.price}
                         </span>
                         <span className="text-sm text-gray-500 line-through">
@@ -167,6 +252,35 @@ const ServiceComponent = ({
               </div>
             </Card>
           ))}
+        </div>
+
+        {/* Pricing Table */}
+        <div className="mt-12 bg-white rounded-xl p-8 shadow-sm">
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            Empty Home Cleaning Services Pricing
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-3 text-left border">Flat / House Size</th>
+                  <th className="p-3 text-center border">Empty Home Normal Cleaning</th>
+                  <th className="p-3 text-center border">Empty Home Deep Cleaning</th>
+                  <th className="p-3 text-center border">Timing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pricingTable.map((row, index) => (
+                  <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="p-3 border font-medium">{row.bhk}</td>
+                    <td className="p-3 border text-center">₹{row.normal}</td>
+                    <td className="p-3 border text-center">₹{row.deep}</td>
+                    <td className="p-3 border text-center">{row.time}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="mt-12 bg-white rounded-xl p-8 shadow-sm">
@@ -261,6 +375,32 @@ const ServiceComponent = ({
 
                 <div>
                   <h3 className="font-medium mb-2 flex items-center gap-2">
+                    <span>Pricing Details:</span>
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="p-2 text-left border">BHK Size</th>
+                          <th className="p-2 text-center border">Price</th>
+                          <th className="p-2 text-center border">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedService.pricing.map((price, i) => (
+                          <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="p-2 border">{price.bhk}</td>
+                            <td className="p-2 border text-center">{price.price}</td>
+                            <td className="p-2 border text-center">{price.time}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-2 flex items-center gap-2">
                     <span>Not Included:</span>
                   </h3>
                   <ul className="space-y-2 pl-4">
@@ -314,4 +454,4 @@ const ServiceComponent = ({
   );
 };
 
-export default ServiceComponent;
+export default EmptyHome;

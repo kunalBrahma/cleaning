@@ -16,7 +16,7 @@ import {
   FaPaintRoller,
   FaCrown,
   FaEraser,
-  FaWater
+  FaWater,
 } from "react-icons/fa";
 
 const whatsappNumber = "918638167421";
@@ -26,26 +26,40 @@ const services = [
     title: "Normal Bathroom Cleaning",
     price: "₹458",
     originalPrice: "₹419",
-    image: "https://images.unsplash.com/photo-1571712707792-82c3cc4243f5?q=80&w=2089&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    image:
+      "https://images.unsplash.com/photo-1571712707792-82c3cc4243f5?q=80&w=2089&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     features: [
-      { label: "Floor & wall tiles cleaning", icon: <FaThLarge />, desc: "Tiles" },
+      {
+        label: "Floor & wall tiles cleaning",
+        icon: <FaThLarge />,
+        desc: "Tiles",
+      },
       { label: "Tap fixtures polishing", icon: <FaShower />, desc: "Tap" },
-      { label: "Toilet & basin sanitization", icon: <FaToilet />, desc: "Toilet" },
+      {
+        label: "Toilet & basin sanitization",
+        icon: <FaToilet />,
+        desc: "Toilet",
+      },
       { label: "Window & exhaust cleaning", icon: <FaFan />, desc: "Window" },
-      { label: "Partition & mirror cleaning", icon: <FaImage />, desc: "Mirror" },
-      { label: "Normal stain removal", icon: <FaTint />, desc: "Stain" }
+      {
+        label: "Partition & mirror cleaning",
+        icon: <FaImage />,
+        desc: "Mirror",
+      },
+      { label: "Normal stain removal", icon: <FaTint />, desc: "Stain" },
     ],
     requirements: [
       { label: "Ladder (if needed)", icon: null },
-      { label: "Bucket & mug provided by customer", icon: null }
+      { label: "Bucket & mug provided by customer", icon: null },
     ],
     exclusions: [
       { label: "Scrubbing machine cleaning", icon: null },
       { label: "Cabinet interior cleaning", icon: null },
-      { label: "Bucket/mug/stool not provided", icon: null }
+      { label: "Bucket/mug/stool not provided", icon: null },
     ],
     popular: false,
-    whatsappMessage: "Hi, I'd like to book Normal Bathroom Cleaning (₹458). Please provide available slots."
+    whatsappMessage:
+      "Hi, I'd like to book Normal Bathroom Cleaning (₹458). Please provide available slots.",
   },
   {
     title: "Bathroom Deep Cleaning",
@@ -131,15 +145,33 @@ const services = [
 
 const serviceDetails = {
   includes: [
-    { icon: <FaCheck className="text-green-500 mt-1" size={16} />, label: "Professional cleaning of all surfaces" },
-    { icon: <FaCheck className="text-green-500 mt-1" size={16} />, label: "Eco-friendly cleaning products" },
-    { icon: <FaCheck className="text-green-500 mt-1" size={16} />, label: "Complete sanitization" }
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Professional cleaning of all surfaces",
+    },
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Eco-friendly cleaning products",
+    },
+    {
+      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+      label: "Complete sanitization",
+    },
   ],
   notes: [
-    { icon: <FaClock className="text-yellow-500 mt-1" size={16} />, label: "Service duration: 2-3 hours depending on bathroom size" },
-    { icon: <FaTools className="text-yellow-500 mt-1" size={16} />, label: "Our team brings all necessary equipment" },
-    { icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />, label: "Click 'Book Now' to schedule your cleaning" }
-  ]
+    {
+      icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
+      label: "Service duration: 2-3 hours depending on bathroom size",
+    },
+    {
+      icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
+      label: "Our team brings all necessary equipment",
+    },
+    {
+      icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
+      label: "Click 'Book Now' to schedule your cleaning",
+    },
+  ],
 };
 
 const Bathroom = () => {
