@@ -1,3 +1,7 @@
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
+import HomeServiceComponent from "../common/HomeServiceComponent";
 import {
   FaClock,
   FaTools,
@@ -7,164 +11,149 @@ import {
   FaCrown,
   FaCheck,
 } from "react-icons/fa";
-import HomeServiceComponent from "../common/HomeServiceComponent";
+import { IconType } from "react-icons";
 
-// const whatsappNumber = "918638167421";
-
-const pricingTable = [
-  { bhk: "1BHK", normal: 2699, deep: 3399, master: 4999, time: "2-4 Hours" },
-  { bhk: "2BHK", normal: 3199, deep: 4199, master: 5899, time: "3-5 Hours" },
-  { bhk: "3BHK", normal: 3999, deep: 4999, master: 7199, time: "4-7 Hours" },
-  { bhk: "4BHK", normal: 5399, deep: 6399, master: 9199, time: "7-10 Hours" },
-  { bhk: "5BHK", normal: 6399, deep: 9499, master: 12499, time: "9-11 Hours" },
-  {
-    bhk: "6BHK",
-    normal: 7399,
-    deep: 10299,
-    master: 13899,
-    time: "10-12 Hours",
-  },
-];
-
-const services = [
-  {
-    id: "full-home-normal-cleaning",
-    title: "Full Home Normal Cleaning",
-    price: "From ₹2699",
-    originalPrice: "₹3499",
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-    features: [
-      {
-        label: "Sweeping & mopping of floors",
-        icon: <FaThLarge />,
-        desc: null,
-      },
-      { label: "Surface dusting & wiping", icon: <FaShieldAlt />, desc: null },
-      {
-        label: "Basic kitchen & bathroom cleaning",
-        icon: <FaCheckCircle />,
-        desc: null,
-      },
-    ],
-    pricing: pricingTable.map(({ bhk, normal, time }) => ({
-      bhk,
-      price: `₹${normal}`,
-      time,
-    })),
-    requirements: [
-      { label: "Water and electricity access", icon: null },
-      { label: "Customer to provide ladder (if needed)", icon: null },
-    ],
-    exclusions: [{ label: "Deep stain or sofa cleaning", icon: null }],
-    popular: false,
-    whatsappMessage:
-      "Hi, I'd like to book Full Home Normal Cleaning. Please share available slots.",
-  },
-  {
-    id: "full-home-deep-cleaning",
-    title: "Full Home Deep Cleaning",
-    price: "From ₹3399",
-    originalPrice: "₹4199",
-    image:
-      "https://images.unsplash.com/photo-1581579185169-1f31b9d38f59?q=80&w=2070&auto=format&fit=crop",
-    features: [
-      {
-        label: "Everything in Normal Cleaning",
-        icon: <FaCheckCircle />,
-        desc: null,
-      },
-      { label: "Bathroom deep cleaning", icon: <FaShieldAlt />, desc: null },
-      { label: "Kitchen deep cleaning", icon: <FaShieldAlt />, desc: null },
-      { label: "Ceiling & fan dusting", icon: <FaTools />, desc: null },
-    ],
-    pricing: pricingTable.map(({ bhk, deep, time }) => ({
-      bhk,
-      price: `₹${deep}`,
-      time,
-    })),
-    requirements: [
-      { label: "Water and electricity access", icon: null },
-      { label: "Customer to provide ladder (if needed)", icon: null },
-    ],
-    exclusions: [{ label: "Sofa shampoo or upholstery cleaning", icon: null }],
-    popular: true,
-    whatsappMessage:
-      "Hi, I'd like to book Full Home Deep Cleaning. Please share available slots.",
-  },
-  {
-    id: "full-home-master-deep-cleaning",
-    title: "Full Home Master Deep Cleaning",
-    price: "From ₹4999",
-    originalPrice: "₹5999",
-    image:
-      "https://images.unsplash.com/photo-1598300054281-1193c695fb7d?q=80&w=2070&auto=format&fit=crop",
-    features: [
-      {
-        label: "Everything in Deep Cleaning",
-        icon: <FaCheckCircle />,
-        desc: null,
-      },
-      {
-        label: "Paint, cement & rust stain removal",
-        icon: <FaTools />,
-        desc: null,
-      },
-      { label: "Premium eco-friendly products", icon: <FaCrown />, desc: null },
-      { label: "Extended service time", icon: <FaClock />, desc: null },
-    ],
-    pricing: pricingTable.map(({ bhk, master, time }) => ({
-      bhk,
-      price: `₹${master}`,
-      time,
-    })),
-    requirements: [
-      { label: "Water and electricity access", icon: null },
-      { label: "Customer to provide ladder (if needed)", icon: null },
-    ],
-    exclusions: [{ label: "Pest control and upholstery shampoo", icon: null }],
-    popular: false,
-    whatsappMessage:
-      "Hi, I'd like to book Full Home Master Deep Cleaning. Please share available slots.",
-  },
-];
-
-const serviceDetails = {
-  includes: [
-    {
-      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-      label: "Professional cleaning of entire home areas",
-    },
-    {
-      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-      label: "Eco-friendly and safe cleaning products",
-    },
-    {
-      icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-      label: "Sanitization of high-contact areas",
-    },
-  ],
-  notes: [
-    {
-      icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
-      label: "Service duration: 2-12 hours depending on BHK size",
-    },
-    {
-      icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
-      label: "Our team brings necessary equipment",
-    },
-    {
-      icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
-      label: "Click 'Book Now' to schedule your service",
-    },
-  ],
+const iconMap: Record<string, IconType> = {
+  FaClock,
+  FaTools,
+  FaCheckCircle,
+  FaThLarge,
+  FaShieldAlt,
+  FaCrown,
+  FaCheck,
 };
 
+const whatsappNumber = "918638167421";
+
 const FullHome = () => {
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/services-by-category")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch services");
+        return res.json();
+      })
+      .then((data) => {
+        console.log("API Response:", data); // Debug: Log raw API response
+
+        // Get all services from all categories
+        const allServices = Object.values(data).flat() as any[];
+
+        // Filter for subCategory === "Full Home"
+        const fullHomeServices = allServices.filter(
+          (service) => service.subCategory === "Full Home"
+        );
+
+        console.log("Filtered Full Home Services:", fullHomeServices); // Debug: Log filtered services
+
+        if (fullHomeServices.length === 0) {
+          setError("No Full Home services found");
+          setLoading(false);
+          return;
+        }
+
+        const mappedServices = fullHomeServices.map((service) => ({
+          id: service.service_code,
+          title: service.name,
+          price: service.price, // e.g., "From ₹2699"
+          image: service.image,
+          features: (service.features || []).map((f: any) => ({
+            ...f,
+            icon:
+              f.icon && iconMap.hasOwnProperty(f.icon)
+                ? React.createElement(iconMap[f.icon as keyof typeof iconMap])
+                : null,
+          })),
+          pricing: (service.pricetable || []).map((p: any) => ({
+            bhk: p.bhk,
+            price: p.price, // e.g., "₹2699"
+            time: p.time,
+          })),
+          requirements: (service.requirements || []).map((r: any) => ({
+            ...r,
+            icon:
+              r.icon && iconMap.hasOwnProperty(r.icon)
+                ? React.createElement(iconMap[r.icon as keyof typeof iconMap])
+                : null,
+          })),
+          exclusions: (service.exclusions || []).map((e: any) => ({
+            ...e,
+            icon:
+              e.icon && iconMap.hasOwnProperty(e.icon)
+                ? React.createElement(iconMap[e.icon as keyof typeof iconMap])
+                : null,
+          })),
+          popular: !!service.popular,
+          whatsappMessage: service.whatsapp_message,
+        }));
+
+        console.log("Mapped Services:", mappedServices); // Debug: Log mapped services
+
+        setServices(mappedServices);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching services:", err);
+        setError("Failed to load services");
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  const serviceDetails = {
+    includes: [
+      {
+        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+        label: "Professional cleaning of entire home areas",
+      },
+      {
+        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+        label: "Eco-friendly and safe cleaning products",
+      },
+      {
+        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
+        label: "Sanitization of high-contact areas",
+      },
+    ],
+    notes: [
+      {
+        icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
+        label: "Service duration: 2-12 hours depending on BHK size",
+      },
+      {
+        icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
+        label: "Our team brings necessary equipment",
+      },
+      {
+        icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
+        label: "Click 'Book Now' to schedule your service",
+      },
+    ],
+  };
+
+  // Generate pricing table for display
+  const pricingTable = services.reduce((acc: any[], service: any) => {
+    service.pricing.forEach((p: any, index: number) => {
+      if (!acc[index]) {
+        acc[index] = { bhk: p.bhk, time: p.time };
+      }
+      const serviceKey = service.title.toLowerCase().replace(/\s/g, "");
+      acc[index][serviceKey] = p.price.replace("₹", "");
+    });
+    return acc;
+  }, []);
+
+  console.log("Pricing Table:", pricingTable); // Debug: Log pricing table
+
   return (
     <HomeServiceComponent
       services={services}
-      whatsappNumber="918638167421"
+      whatsappNumber={whatsappNumber}
       id="full-home-cleaning"
       backgroundImage="/banner.webp"
       title="Professional Full Home Cleaning Services"
@@ -172,44 +161,46 @@ const FullHome = () => {
       serviceDetails={serviceDetails}
       showTypeSelection={true}
       pricingTable={
-        <>
-          <h2 className="text-2xl font-bold mb-6 text-center">
-            Full Home Cleaning Services Pricing
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-3 text-left border">Flat / House Size</th>
-                  <th className="p-3 text-center border">
-                    Full Home Normal Cleaning
-                  </th>
-                  <th className="p-3 text-center border">
-                    Full Home Deep Cleaning
-                  </th>
-                  <th className="p-3 text-center border">
-                    Full Home Master Deep Cleaning
-                  </th>
-                  <th className="p-3 text-center border">Timing</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pricingTable.map((row, index) => (
-                  <tr
-                    key={index}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                  >
-                    <td className="p-3 border font-medium">{row.bhk}</td>
-                    <td className="p-3 border text-center">₹{row.normal}</td>
-                    <td className="p-3 border text-center">₹{row.deep}</td>
-                    <td className="p-3 border text-center">₹{row.master}</td>
-                    <td className="p-3 border text-center">{row.time}</td>
+        pricingTable.length > 0 ? (
+          <>
+            <h2 className="text-2xl font-bold mb-6 text-center">
+              Full Home Cleaning Services Pricing
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-3 text-left border">Flat / House Size</th>
+                    {services.map((service) => (
+                      <th key={service.id} className="p-3 text-center border">
+                        {service.title}
+                      </th>
+                    ))}
+                    <th className="p-3 text-center border">Timing</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+                </thead>
+                <tbody>
+                  {pricingTable.map((row: any, index: number) => (
+                    <tr
+                      key={index}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="p-3 border font-medium">{row.bhk}</td>
+                      {services.map((service) => (
+                        <td key={service.id} className="p-3 border text-center">
+                          ₹{row[service.title.toLowerCase().replace(/\s/g, "")]}
+                        </td>
+                      ))}
+                      <td className="p-3 border text-center">{row.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div>No pricing data available</div>
+        )
       }
     />
   );

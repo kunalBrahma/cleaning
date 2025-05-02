@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import Container from "../ui/Container";
 import SectionHeading from "../ui/SectionHeading";
@@ -88,8 +87,7 @@ const Repair: React.FC = () => {
   ];
 
   const [repairServices, setRepairServices] = useState<Service[]>([]);
-    const [loading, setLoading] = useState(true);
-  
+  const [loading, setLoading] = useState(true);
 
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +99,8 @@ const Repair: React.FC = () => {
         // Filter for Cleaning category and Active status
         const filteredServices = services.filter(
           (service) =>
-            service.category === "Home Repair Services" && service.status === "Active"
+            service.category === "Home Repair Services" &&
+            service.status === "Active"
         );
         setRepairServices(filteredServices);
       } catch (error) {
@@ -112,7 +111,7 @@ const Repair: React.FC = () => {
     };
 
     fetchServices();
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (!loading && repairServices.length > 0) {
@@ -156,7 +155,12 @@ const Repair: React.FC = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 repair-section-block">
             {repairServices.map((service, i) => (
-              <ServiceCard key={service.id} service={service} index={i} textColor="text-gray-800" />
+              <ServiceCard
+                key={service.id}
+                service={service}
+                index={i}
+                textColor="text-gray-800"
+              />
             ))}
           </div>
 

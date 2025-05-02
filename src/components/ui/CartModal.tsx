@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useRef, useEffect } from "react";
 import { X, Trash2 } from "lucide-react";
 import { gsap } from "gsap";
@@ -27,9 +28,32 @@ const CartModal: React.FC<CartModalProps> = ({
   cartItems,
   removeFromCart,
   updateQuantity,
-  calculateTotal,
 }) => {
   const cartModalRef = useRef<HTMLDivElement>(null);
+
+  // Calculate Subtotal
+  const calculateSubtotal = () => {
+    return cartItems
+      .reduce((total, item) => total + item.price * item.quantity, 0)
+      .toFixed(2);
+  };
+
+  // Calculate Convenience Fee
+  const calculateConvenienceFee = () => {
+    const subtotal = parseFloat(calculateSubtotal());
+    if (subtotal < 500) {
+      return 39;
+    }
+    const increments = Math.floor(subtotal / 500);
+    return 39 + increments * 10;
+  };
+
+  // Calculate Total (Subtotal + Convenience Fee)
+  const calculateTotalWithFee = () => {
+    const subtotal = parseFloat(calculateSubtotal());
+    const convenienceFee = calculateConvenienceFee();
+    return (subtotal + convenienceFee).toFixed(2);
+  };
 
   useEffect(() => {
     if (cartModalRef.current) {
@@ -125,9 +149,17 @@ const CartModal: React.FC<CartModalProps> = ({
         </div>
 
         <div className="border-t p-4 bg-gray-50">
+          <div className="flex justify-between mb-2">
+            <span className="font-semibold">Subtotal:</span>
+            <span className="font-bold text-gray-700">Rs {calculateSubtotal()}</span>
+          </div>
+          <div className="flex justify-between mb-2">
+            <span className="font-semibold">Convenience Fee:</span>
+            <span className="font-bold text-gray-700">Rs {calculateConvenienceFee()}</span>
+          </div>
           <div className="flex justify-between mb-4">
             <span className="font-semibold">Total:</span>
-            <span className="font-bold text-blue-700">${calculateTotal()}</span>
+            <span className="font-bold text-blue-700">Rs {calculateTotalWithFee()}</span>
           </div>
           <Link to="/checkout">
             <Button
@@ -148,7 +180,6 @@ const CartModal: React.FC<CartModalProps> = ({
               View Cart
             </Button>
           </Link>
-          
         </div>
       </div>
     </>

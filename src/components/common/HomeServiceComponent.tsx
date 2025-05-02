@@ -21,7 +21,6 @@ export interface Service {
   id: string;
   title: string;
   price: string;
-  originalPrice?: string;
   image: string;
   features: {
     label: string;
@@ -220,11 +219,7 @@ const HomeServiceComponent = ({
                         <span className="text-2xl text-rose-600 font-bold">
                           {service.price}
                         </span>
-                        {service.originalPrice && (
-                          <span className="text-sm text-gray-500 line-through">
-                            {service.originalPrice}
-                          </span>
-                        )}
+                       
                       </div>
                     </div>
                     <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
@@ -330,11 +325,7 @@ const HomeServiceComponent = ({
                 <span className="text-2xl font-bold text-rose-600">
                   {selectedService.price}
                 </span>
-                {selectedService.originalPrice && (
-                  <span className="text-sm text-gray-500 line-through">
-                    {selectedService.originalPrice}
-                  </span>
-                )}
+                
               </div>
             </DialogHeader>
 

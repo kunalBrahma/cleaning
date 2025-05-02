@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios"; // Make sure to install axios
 
 import {
   Form,
@@ -28,6 +29,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Button from "@/components/ui/Button";
+
+// Define the API URL - adjust based on your environment
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 // Define the checkout form schema with Zod
 const checkoutSchema = z.object({
@@ -69,32 +73,6 @@ const checkoutSchema = z.object({
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
-
-// Function to send WhatsApp notification
-const sendWhatsAppNotification = async (phoneNumber: string, message: string) => {
-  try {
-    const options = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        'appkey': '991b16da-8631-4b78-aa70-24c6b4eb8d51',
-        'authkey': 'oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP',
-        'to': phoneNumber,
-        'message': message
-      })
-    };
-
-    const response = await fetch('https://whatsapp.webotapp.com/api/create-message', options);
-    const data = await response.json();
-    console.log('WhatsApp notification sent:', data);
-    return data;
-  } catch (error) {
-    console.error('Error sending WhatsApp notification:', error);
-    return null;
-  }
-};
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -195,7 +173,7 @@ const CheckoutPage = () => {
   };
 
   const onSubmit = async (data: CheckoutFormValues) => {
-    console.log("Form submitted with data:", data); // Debug
+    console.log("Form submitted with data:", data);
     setIsLoading(true);
     
     try {
@@ -206,91 +184,66 @@ const CheckoutPage = () => {
         data.cardCvv = undefined;
       }
 
-      // Generate order number
-      const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
-      
-      const orderSummary = {
-        orderNumber,
-        customerName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
-        phone: data.phone,
-        shippingAddress: {
-          line1: data.addressLine1,
-          line2: data.addressLine2 || "",
-          city: data.city,
-          state: data.state,
-          zipCode: data.zipCode,
-          country: data.country,
-        },
-        items: cartItems,
-        paymentMethod: data.paymentMethod,
+      // Prepare data for backend
+      const checkoutData = {
+        ...data,
+        cartItems,
         subtotal,
         convenienceFee,
         discount,
         total,
-        orderDate: new Date().toISOString(),
-        status: "Confirmed",
+        couponCode: appliedCoupon,
       };
 
-      console.log("Order summary created:", orderSummary); // Debug
-
-      // Save to localStorage
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-        localStorage.setItem("orders", JSON.stringify([...existingOrders, orderSummary]));
-      } catch (error) {
-        console.error("Error saving to localStorage:", error);
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      let response;
+      
+      // If token exists, send authenticated request
+      if (token) {
+        response = await axios.post(`${API_URL}/api/checkout`, checkoutData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } else {
+        // If no token, send as guest (will be handled by backend)
+        response = await axios.post(`${API_URL}/api/checkout`, checkoutData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
       }
 
-      // Store in sessionStorage
-      try {
-        sessionStorage.setItem("orderSummary", JSON.stringify(orderSummary));
-      } catch (error) {
-        console.error("Error saving to sessionStorage:", error);
-      }
+      const { orderSummary } = response.data;
       
-      // Prepare order items for WhatsApp message
-      const itemsText = cartItems.map(item => 
-        `- ${item.name} (x${item.quantity}): Rs. ${(item.price * item.quantity).toFixed(2)}`
-      ).join('\n');
+      // Store in sessionStorage for thank you page
+      sessionStorage.setItem("orderSummary", JSON.stringify(orderSummary));
       
-      // Format address for WhatsApp message
-      const addressText = `${data.addressLine1}${data.addressLine2 ? ', ' + data.addressLine2 : ''}, ${data.city}, ${data.state}, ${data.zipCode}, ${data.country}`;
-      
-      // Create message for owner
-      const ownerMessage = `New Order #${orderNumber}!\n\nCustomer: ${data.firstName} ${data.lastName}\nPhone: ${data.phone}\nEmail: ${data.email}\nAddress: ${addressText}\n\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nPayment Method: ${data.paymentMethod === 'credit' ? 'Credit Card' : data.paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}`;
-      
-      // Create message for customer
-      const customerMessage = `Thank you for your order #${orderNumber}!\n\nYour order has been confirmed and is being processed.\n\nOrder Details:\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nShipping Address:\n${addressText}\n\nPayment Method: ${data.paymentMethod === 'credit' ? 'Credit Card' : data.paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}\n\nThank you for shopping with us!`;
-      
-      // Send WhatsApp notifications
-      // To owner
-      await sendWhatsAppNotification('918638167421', ownerMessage);
-      // To customer (using the phone number provided in the form)
-      if (data.phone && data.phone.length >= 10) {
-        const formattedPhone = data.phone.trim().startsWith('+') ? data.phone.trim() : `+91${data.phone.trim().replace(/^0+/, '')}`;
-        await sendWhatsAppNotification(formattedPhone, customerMessage);
-      }
-
       // Clear cart
-      console.log("Clearing cart"); // Debug
       clearCart();
 
-      // Show success toast only once
-      if (!sessionStorage.getItem("orderPlacedToast")) {
-        toast.success("Order placed successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-          className: "bg-green-500 text-white border-green-600",
-        });
-        sessionStorage.setItem("orderPlacedToast", "true");
-      }
+      // Show success toast
+      toast.success("Order placed successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+        className: "bg-green-500 text-white border-green-600",
+      });
 
-      console.log("Navigating to /thank-you"); // Debug
+      // Navigate to thank you page
       navigate("/thank-you", { state: { orderSummary } });
     } catch (error) {
       console.error("Error in onSubmit:", error);
-      toast.error("Failed to place order. Please try again.", {
+      let errorMessage = "Failed to place order. Please try again.";
+      
+      // Extract more specific error message if available
+      if (axios.isAxiosError(error) && error.response) {
+        errorMessage = error.response.data.message || errorMessage;
+      }
+      
+      toast.error(errorMessage, {
         position: "top-right",
         autoClose: 3000,
         className: "bg-red-500 text-white border-red-600",

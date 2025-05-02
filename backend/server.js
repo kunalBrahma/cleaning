@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 import morgan from "morgan";
+import fetch from "node-fetch";
 
 config();
 
@@ -45,7 +46,7 @@ const pool = mysql.createPool({
 // JWT secret
 const JWT_SECRET = process.env.JWT_SECRET || "0e02fa4596bb2cfe82c864dfaf2ef5c863659b84dd7e1c985d34f8f54a8e6435783c958f858cabe99cabaf45ce3b56b50fe7afab1d3268381da0ddd12a402a9c";
 
-// Test database connection on startup
+// Test database connection
 async function testDatabaseConnection() {
   let connection;
   try {
@@ -77,7 +78,7 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Token verification error:", error);
-    return res.status(403).json({ message: "Invalid or expired token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
@@ -87,7 +88,7 @@ app.post("/auth/signup", async (req, res) => {
     const { name, email, phone, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email, phone no, and password are required" });
+      return res.status(400).json({ message: "Name, email, and password are required" });
     }
     if (password.length < 8) {
       return res.status(400).json({ message: "Password must be at least 8 characters" });
@@ -96,7 +97,7 @@ app.post("/auth/signup", async (req, res) => {
     const connection = await pool.getConnection();
     try {
       const [existingUsers] = await connection.query(
-        "SELECT id FROM profile WHERE email = ?", 
+        "SELECT id FROM profile WHERE email = ?",
         [email]
       );
 
@@ -105,7 +106,6 @@ app.post("/auth/signup", async (req, res) => {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      // FIX: Added the correct number of placeholders to match values
       const [result] = await connection.query(
         "INSERT INTO profile (name, email, phone, password) VALUES (?, ?, ?, ?)",
         [name, email, phone, hashedPassword]
@@ -116,7 +116,7 @@ app.post("/auth/signup", async (req, res) => {
         [result.insertId]
       );
 
-      const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, { expiresIn: "1d" });
+      const token = jwt.sign({ userId: result.insertId }, JWT_SECRET, { expiresIn: "7d" });
 
       return res.status(201).json({
         message: "User created successfully",
@@ -128,9 +128,9 @@ app.post("/auth/signup", async (req, res) => {
     }
   } catch (error) {
     console.error("Signup error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: "Server error",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -158,7 +158,7 @@ app.post("/auth/login", async (req, res) => {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1d" });
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
       const { password: _, ...userWithoutPassword } = user;
 
       return res.status(200).json({
@@ -207,8 +207,18 @@ app.get("/auth/me", authenticateToken, async (req, res) => {
   }
 });
 
-// Get all services grouped by category
+app.post("/auth/refresh", authenticateToken, async (req, res) => {
+  try {
+    const newToken = jwt.sign({ userId: req.user.id }, JWT_SECRET, { expiresIn: "7d" });
+    return res.status(200).json({ token: newToken });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(500).json({ message: "Failed to refresh token" });
+  }
+});
 
+
+// Get all services grouped by category
 app.get("/api/services-by-category", async (req, res) => {
     try {
       const connection = await pool.getConnection();
@@ -236,28 +246,296 @@ app.get("/api/services-by-category", async (req, res) => {
     }
   });
   
-  // Get all active services
-  app.get("/api/services", async (req, res) => {
+// Get all active services
+app.get("/api/services", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
     try {
-      const connection = await pool.getConnection();
+      const [services] = await connection.query(
+        "SELECT * FROM main WHERE status = 'Active'"
+      );
+      
+      res.status(200).json(services);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    res.status(500).json({ 
+      message: "Failed to fetch services",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+});
+
+// Checkout endpoint - FIXED to match table schema
+app.post('/api/checkout', authenticateToken, async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    addressLine1,
+    addressLine2,
+    city,
+    state,
+    zipCode,
+    country,
+    paymentMethod,
+    cartItems,
+    subtotal,
+    convenienceFee,
+    discount,
+    total,
+    couponCode,
+  } = req.body;
+
+  // Validate required fields
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phone ||
+    !addressLine1 ||
+    !city ||
+    !state ||
+    !zipCode ||
+    !country ||
+    !paymentMethod ||
+    !cartItems ||
+    !Array.isArray(cartItems) ||
+    cartItems.length === 0 ||
+    subtotal == null ||
+    convenienceFee == null ||
+    total == null
+  ) {
+    return res.status(400).json({ message: 'All required fields must be provided' });
+  }
+
+  const profileId = req.user ? req.user.id : null; // From authenticateToken middleware
+  const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Insert into orders table - FIXED column names to match schema
+    const [orderResult] = await connection.query(
+      `
+      INSERT INTO orders (
+        order_number, profile_id, guest_email, guest_phone, first_name, last_name,
+        address_line1, address_line2, city, state, zip_code, country,
+        payment_method, subtotal, convenience_fee, discount, total, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        orderNumber,
+        profileId,
+        profileId ? null : email, // Store email for guests
+        profileId ? null : phone, // Store phone for guests
+        firstName,
+        lastName,
+        addressLine1,
+        addressLine2 || null,
+        city,
+        state,
+        zipCode,
+        country,
+        paymentMethod,
+        subtotal,
+        convenienceFee,
+        discount || 0,
+        total,
+        'Pending', // Initial status
+      ]
+    );
+
+    const orderId = orderResult.insertId;
+
+    // Insert order items
+    for (const item of cartItems) {
+      if (!item.id || !item.name || !item.quantity || !item.price) {
+        throw new Error('Invalid cart item data');
+      }
+      await connection.query(
+        `
+        INSERT INTO order_items (
+          order_id, product_id, product_name, quantity, price
+        ) VALUES (?, ?, ?, ?, ?)
+        `,
+        [orderId, item.id, item.name, item.quantity, item.price]
+      );
+    }
+
+    // Handle coupon (if provided and coupons table exists)
+    if (couponCode && discount > 0) {
       try {
-        const [services] = await connection.query(
-          "SELECT * FROM main WHERE status = 'Active'"
+        const [coupon] = await connection.query(
+          'SELECT * FROM coupons WHERE code = ? AND is_active = TRUE', 
+          [couponCode]
         );
         
-        res.status(200).json(services);
-      } finally {
-        connection.release();
+        if (coupon.length > 0) {
+          await connection.query(
+            'INSERT INTO order_coupons (order_id, coupon_id, discount_applied) VALUES (?, ?, ?)',
+            [orderId, coupon[0].coupon_id, discount]
+          );
+        }
+      } catch (error) {
+        console.error("Error handling coupon:", error);
+        // Continue with order creation even if coupon handling fails
       }
-    } catch (error) {
-      console.error("Error fetching services:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch services",
-        error: process.env.NODE_ENV === "development" ? error.message : undefined
-      });
     }
-  });
 
+    await connection.commit();
+
+    try {
+      // Send WhatsApp notifications
+      const itemsText = cartItems
+        .map((item) => `- ${item.name} (x${item.quantity}): Rs. ${(item.price * item.quantity).toFixed(2)}`)
+        .join('\n');
+      const addressText = `${addressLine1}${addressLine2 ? ', ' + addressLine2 : ''}, ${city}, ${state}, ${zipCode}, ${country}`;
+      const ownerMessage = `New Order #${orderNumber}!\n\nCustomer: ${firstName} ${lastName}\nPhone: ${phone}\nEmail: ${email}\nAddress: ${addressText}\n\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nPayment Method: ${paymentMethod}\nStatus: Pending`;
+      const customerMessage = `Thank you for your order #${orderNumber}!\n\nOrder Details:\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nShipping Address:\n${addressText}\n\nPayment Method: ${paymentMethod}\nStatus: Pending`;
+
+      // Send to owner
+      await sendWhatsAppNotification('918638167421', ownerMessage);
+
+      // Send to customer
+      if (phone && phone.length >= 10) {
+        const formattedPhone = phone.trim().startsWith('+') ? phone.trim() : `+91${phone.trim().replace(/^0+/, '')}`;
+        await sendWhatsAppNotification(formattedPhone, customerMessage);
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Continue with response even if notifications fail
+    }
+
+    // Return order summary
+    const orderSummary = {
+      orderNumber,
+      customerName: `${firstName} ${lastName}`,
+      email,
+      phone,
+      shippingAddress: {
+        line1: addressLine1,
+        line2: addressLine2 || '',
+        city,
+        state,
+        zipCode,
+        country,
+      },
+      items: cartItems,
+      paymentMethod,
+      subtotal,
+      convenienceFee,
+      discount: discount || 0,
+      total,
+      orderDate: new Date().toISOString(),
+      status: 'Pending',
+    };
+
+    res.status(201).json({ message: 'Order placed successfully', orderSummary });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Checkout error:', error);
+    res.status(500).json({
+      message: 'Failed to place order',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+
+
+// Make sure this endpoint is properly defined and not commented out
+// Get bookings/orders for authenticated user
+app.get('/api/user/bookings', authenticateToken, async (req, res) => {
+  try {
+    const profileId = req.user ? req.user.id : null;
+
+    if (!profileId) {
+      return res.status(401).json({ message: 'Authentication required to view bookings' });
+    }
+
+    const [orders] = await pool.query(
+      `
+      SELECT 
+        o.order_id,
+        o.order_number,
+        o.first_name,
+        o.last_name,
+        o.guest_email,
+        o.guest_phone,
+        o.address_line1,
+        o.address_line2,
+        o.city,
+        o.state,
+        o.zip_code,
+        o.country,
+        o.payment_method,
+        o.subtotal,
+        o.convenience_fee,
+        o.discount,
+        o.total,
+        o.status,
+        o.created_at,
+        o.updated_at,
+        GROUP_CONCAT(
+          CONCAT(oi.product_name, ' (x', oi.quantity, ')')
+          SEPARATOR ', '
+        ) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.order_id = oi.order_id
+      WHERE o.profile_id = ?
+      GROUP BY o.order_id
+      ORDER BY o.created_at DESC
+      `,
+      [profileId]
+    );
+
+    res.status(200).json({
+      message: 'Bookings retrieved successfully',
+      bookings: orders,
+    });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({
+      message: 'Failed to fetch bookings',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+
+// WhatsApp notification function with error handling
+async function sendWhatsAppNotification(phoneNumber, message) {
+  try {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        appkey: '991b16da-8631-4b78-aa70-24c6b4eb8d51',
+        authkey: 'oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP',
+        to: phoneNumber,
+        message: message,
+      }),
+    };
+
+    const response = await fetch('https://whatsapp.webotapp.com/api/create-message', options);
+    const data = await response.json();
+    console.log('WhatsApp notification sent:', data);
+    return data;
+  } catch (error) {
+    console.error('Error sending WhatsApp notification:', error);
+    return null;
+  }
+}
 
 // Start server
 const PORT = process.env.PORT || 5000;
