@@ -1,66 +1,192 @@
-import Container from '../ui/Container';
-import SectionHeading from '../ui/SectionHeading';
-import ServiceCard from '../common/ServiceCard';
-import { getServicesByCategory } from '../../data/services';
+import React, { useEffect, useState, useRef } from "react";
+import Container from "../ui/Container";
+import SectionHeading from "../ui/SectionHeading";
+import ServiceCard from "../common/ServiceCard";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ProcessSteps from "../common/ProcessSteps";
+import axios from "axios";
+
+gsap.registerPlugin(ScrollTrigger);
+
+interface Service {
+  id: number;
+  category: string;
+  subCategory: string;
+  icon: string;
+  path: string;
+  status: string;
+  createdAt: string;
+}
 
 const PestControl: React.FC = () => {
-  const servicesByCategory = getServicesByCategory();
-  const paintingServices = servicesByCategory['Pest Control'] || [];
+  const steps = [
+    {
+      number: "01",
+      title: "Inspection & Assessment",
+      description:
+        "We thoroughly inspect your property to identify pest issues, nesting areas, and entry points. Then assess the severity and customize a plan.",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        </svg>
+      ),
+    },
+    {
+      number: "02",
+      title: "Treatment & Elimination",
+      description:
+        "Implement safe, effective, eco-friendly solutions — spraying, baiting, sealing access points — targeting pests at the source.",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+          />
+        </svg>
+      ),
+    },
+    {
+      number: "03",
+      title: "Prevention & Follow-Up",
+      description:
+        "Provide preventive recommendations and maintenance options. Schedule follow-ups to ensure long-term pest-free protection.",
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+  ];
+
+  const [pestControlServices, setPestControlServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const processRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/services");
+        const services: Service[] = response.data;
+        // Filter for Cleaning category and Active status
+        const filteredServices = services.filter(
+          (service) =>
+            service.category === "Pest Control" && service.status === "Active"
+        );
+        setPestControlServices(filteredServices);
+      } catch (error) {
+        console.error("Error fetching services:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, []);
+
+  useEffect(() => {
+    if (!loading && pestControlServices.length > 0) {
+      const ctx = gsap.context(() => {
+        gsap.from(".pest-section-block", {
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top 80%",
+          },
+          opacity: 0,
+          y: 40,
+          duration: 0.8,
+          stagger: 0.15,
+          ease: "power2.out",
+        });
+      }, sectionRef);
+
+      const ctx2 = gsap.context(() => {
+        gsap.from(".pest-process-step", {
+          scrollTrigger: {
+            trigger: processRef.current,
+            start: "top 85%",
+          },
+          opacity: 0,
+          y: 40,
+          duration: 0.7,
+          stagger: 0.2,
+          ease: "back.out(1.2)",
+        });
+      }, processRef);
+
+      return () => {
+        ctx.revert();
+        ctx2.revert();
+      };
+    }
+  }, [loading, pestControlServices]);
+
+  if (loading)
+    return (
+      <div className="py-20 text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+        <p className="mt-3 text-gray-600">Loading services...</p>
+      </div>
+    );
 
   return (
-    <section
-    id="cleaning"
-    className="relative py-24 bg-cover bg-fixed bg-center overflow-hidden"
-    style={{
-      backgroundImage: `url('/banner.webp')`, // Replace with your image URL
-    }}
-    
-  >
-    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-sky-900 to-gray-500 opacity-50"></div> {/* Overlay */}
+    <section id="pestcontrol" className="py-24 bg-white">
       <Container>
-        <SectionHeading 
-          title="Protect Your Home & Business from Unwanted Pests" 
-          subtitle="Our expert pest control solutions are designed to keep your space safe, clean, and pest-free — year-round peace of mind guaranteed."
-          center
-        />
-    
-        {/* Service Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {paintingServices.map((service) => (
-            <ServiceCard key={service.id} service={service} index={0} />
-          ))}
-        </div>
-
-        {/* Additional Information */}
-        <div className="mt-20 bg-white p-8 rounded-xl shadow-sm">
-          <h3 className="text-xl font-semibold mb-4 text-center">Our Pest Control Process</h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-blue-600 font-bold">1</span>
-              </div>
-              <h4 className="font-medium mb-2">Inspection & Assessment</h4>
-              <p className="text-sm text-gray-600">We start with a thorough inspection of your property to identify pest issues, nesting areas, and entry points. Our experts assess the severity of the infestation and determine the best treatment strategy tailored to your needs.</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-blue-600 font-bold">2</span>
-              </div>
-              <h4 className="font-medium mb-2">Treatment & Elimination</h4>
-              <p className="text-sm text-gray-600">Based on our findings, we implement safe, effective, and environmentally-friendly pest control solutions. Whether it’s spraying, baiting, or sealing access points — we target pests at the source and prevent them from coming back.</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-blue-600 font-bold">3</span>
-              </div>
-              <h4 className="font-medium mb-2">Prevention & Follow-Up</h4>
-              <p className="text-sm text-gray-600">After treatment, we provide recommendations to keep your space pest-free, including preventive measures and routine maintenance options. We also schedule follow-ups if needed, ensuring long-term protection for your home or business.</p>
-            </div>
+        <div className="relative z-10" ref={sectionRef}>
+          <div className="max-w-3xl mx-auto text-center mb-14 pest-section-block">
+            <SectionHeading
+              title="Expert Pest Control Services"
+              subtitle="Keep your home and business safe, clean, and pest-free with our proven solutions"
+              center
+            />
           </div>
-        </div>
 
-        
-        
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 pest-section-block">
+            {pestControlServices.map((service, i) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                index={i}
+                textColor="text-gray-800"
+              />
+            ))}
+          </div>
+
+          <ProcessSteps
+            title="Our Pest Control Process"
+            subtitle="An effective, multi-step strategy to eliminate pests and prevent their return"
+            steps={steps}
+          />
+        </div>
       </Container>
     </section>
   );

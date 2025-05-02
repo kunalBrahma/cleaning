@@ -5,8 +5,8 @@ export interface Service {
   icon: string;
   price?: string;
   category: string;
-  subCategory:string;
-  path:string;
+  subCategory: string;
+  path: string;
 }
 
 export interface Testimonial {

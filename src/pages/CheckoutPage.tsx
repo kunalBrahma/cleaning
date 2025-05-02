@@ -70,6 +70,32 @@ const checkoutSchema = z.object({
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
+// Function to send WhatsApp notification
+const sendWhatsAppNotification = async (phoneNumber: string, message: string) => {
+  try {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'appkey': '991b16da-8631-4b78-aa70-24c6b4eb8d51',
+        'authkey': 'oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP',
+        'to': phoneNumber,
+        'message': message
+      })
+    };
+
+    const response = await fetch('https://whatsapp.webotapp.com/api/create-message', options);
+    const data = await response.json();
+    console.log('WhatsApp notification sent:', data);
+    return data;
+  } catch (error) {
+    console.error('Error sending WhatsApp notification:', error);
+    return null;
+  }
+};
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
@@ -168,8 +194,10 @@ const CheckoutPage = () => {
     });
   };
 
-  const onSubmit = (data: CheckoutFormValues) => {
+  const onSubmit = async (data: CheckoutFormValues) => {
     console.log("Form submitted with data:", data); // Debug
+    setIsLoading(true);
+    
     try {
       // Clear card fields for non-credit payments
       if (data.paymentMethod !== "credit") {
@@ -178,8 +206,11 @@ const CheckoutPage = () => {
         data.cardCvv = undefined;
       }
 
+      // Generate order number
+      const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
+      
       const orderSummary = {
-        orderNumber: `ORD-${Math.floor(Math.random() * 1000000)}`,
+        orderNumber,
         customerName: `${data.firstName} ${data.lastName}`,
         email: data.email,
         phone: data.phone,
@@ -217,6 +248,29 @@ const CheckoutPage = () => {
       } catch (error) {
         console.error("Error saving to sessionStorage:", error);
       }
+      
+      // Prepare order items for WhatsApp message
+      const itemsText = cartItems.map(item => 
+        `- ${item.name} (x${item.quantity}): Rs. ${(item.price * item.quantity).toFixed(2)}`
+      ).join('\n');
+      
+      // Format address for WhatsApp message
+      const addressText = `${data.addressLine1}${data.addressLine2 ? ', ' + data.addressLine2 : ''}, ${data.city}, ${data.state}, ${data.zipCode}, ${data.country}`;
+      
+      // Create message for owner
+      const ownerMessage = `New Order #${orderNumber}!\n\nCustomer: ${data.firstName} ${data.lastName}\nPhone: ${data.phone}\nEmail: ${data.email}\nAddress: ${addressText}\n\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nPayment Method: ${data.paymentMethod === 'credit' ? 'Credit Card' : data.paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}`;
+      
+      // Create message for customer
+      const customerMessage = `Thank you for your order #${orderNumber}!\n\nYour order has been confirmed and is being processed.\n\nOrder Details:\nItems:\n${itemsText}\n\nSubtotal: Rs. ${subtotal.toFixed(2)}\nConvenience Fee: Rs. ${convenienceFee.toFixed(2)}${discount > 0 ? `\nDiscount: Rs. ${discount.toFixed(2)}` : ''}\nTotal: Rs. ${total.toFixed(2)}\n\nShipping Address:\n${addressText}\n\nPayment Method: ${data.paymentMethod === 'credit' ? 'Credit Card' : data.paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}\n\nThank you for shopping with us!`;
+      
+      // Send WhatsApp notifications
+      // To owner
+      await sendWhatsAppNotification('918638167421', ownerMessage);
+      // To customer (using the phone number provided in the form)
+      if (data.phone && data.phone.length >= 10) {
+        const formattedPhone = data.phone.trim().startsWith('+') ? data.phone.trim() : `+91${data.phone.trim().replace(/^0+/, '')}`;
+        await sendWhatsAppNotification(formattedPhone, customerMessage);
+      }
 
       // Clear cart
       console.log("Clearing cart"); // Debug
@@ -241,6 +295,8 @@ const CheckoutPage = () => {
         autoClose: 3000,
         className: "bg-red-500 text-white border-red-600",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -722,7 +778,14 @@ const CheckoutPage = () => {
                         size="lg"
                         disabled={isLoading}
                       >
-                        Place Order
+                        {isLoading ? (
+                          <div className="flex items-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Processing...
+                          </div>
+                        ) : (
+                          "Place Order"
+                        )}
                       </Button>
                     </CardContent>
                   </Card>

@@ -1,3 +1,6 @@
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
 import ServiceComponent from "../common/ServiceComponent";
 import {
   FaCheck,
@@ -10,55 +13,21 @@ import {
   FaPumpSoap,
   FaHandsWash,
 } from "react-icons/fa";
+import { IconType } from "react-icons";
+
+const iconMap: Record<string, IconType> = {
+  FaCheck,
+  FaClock,
+  FaTools,
+  FaCheckCircle,
+  FaCouch,
+  FaSprayCan,
+  FaRecycle,
+  FaPumpSoap,
+  FaHandsWash,
+};
 
 const whatsappNumber = "918638167421";
-
-const sofaPrices = [479, 629, 729, 879, 979, 1129, 1229, 1329, 1579, 1679];
-const images = [
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-];
-
-const services = sofaPrices.map((price, index) => {
-  const seats = index + 3;
-  const paddedIndex = String(index + 1).padStart(3, '0'); // Creates '001', '002', etc.
-  
-  return {
-    id: `SOF${paddedIndex}`, // Format: SOF001, SOF002, etc.
-    title: `Sofa Cleaning - ${seats} Seats`,
-    price: price,
-    image: images[index],
-    features: [
-      { label: "Vacuum cleaning", icon: <FaCouch />, desc: "Vacuum" },
-      { label: "Stain treatment", icon: <FaSprayCan />, desc: "Stain" },
-      { label: "Dry & wet cleaning", icon: <FaRecycle />, desc: "Cleaning" },
-      {
-        label: "Shampooing & sanitizing",
-        icon: <FaPumpSoap />,
-        desc: "Sanitize",
-      },
-      { label: "Fabric-safe chemicals", icon: <FaHandsWash />, desc: "Safe" },
-    ],
-    requirements: [
-      { label: "Power plug point access", icon: null },
-      { label: "Water supply (if required)", icon: null },
-    ],
-    exclusions: [
-      { label: "Cushion covers dry-cleaning", icon: null },
-      { label: "Carpet cleaning", icon: null },
-    ],
-    popular: seats === 5 || seats === 7, // Mark 5 and 7 seats as popular just for variety
-    whatsappMessage: `Hi, I'd like to book Sofa Cleaning for ${seats} Seats (₹${price}). Please provide available slots.`,
-  };
-});
 
 const serviceDetails = {
   includes: [
@@ -92,6 +61,66 @@ const serviceDetails = {
 };
 
 const Sofa = () => {
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/services-by-category")
+      .then((res) => res.json())
+      .then((data) => {
+        // Get all services under "Cleaning Services" with subCategory "Sofa Cleaning"
+        const allCleaning = data["Cleaning Services"] || [];
+        const sofaServices = allCleaning.filter(
+          (service: any) => service.subCategory === "Sofa Cleaning"
+        );
+
+        const mappedServices = sofaServices.map((service: any) => ({
+          id: service.service_code,
+          title: service.name,
+          price: Number(service.price),
+          image: service.image,
+          features: Array.isArray(service.features)
+            ? service.features.map((f: any) => ({
+                ...f,
+                icon:
+                  f.icon && iconMap.hasOwnProperty(f.icon)
+                    ? React.createElement(iconMap[f.icon as keyof typeof iconMap])
+                    : null,
+              }))
+            : [],
+          requirements: Array.isArray(service.requirements)
+            ? service.requirements.map((r: any) => ({
+                ...r,
+                icon:
+                  r.icon && iconMap.hasOwnProperty(r.icon)
+                    ? React.createElement(iconMap[r.icon as keyof typeof iconMap])
+                    : null,
+              }))
+            : [],
+          exclusions: Array.isArray(service.exclusions)
+            ? service.exclusions.map((e: any) => ({
+                ...e,
+                icon:
+                  e.icon && iconMap.hasOwnProperty(e.icon)
+                    ? React.createElement(iconMap[e.icon as keyof typeof iconMap])
+                    : null,
+              }))
+            : [],
+          popular: !!service.popular,
+          whatsappMessage: service.whatsapp_message,
+        }));
+
+        setServices(mappedServices);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+        setServices([]);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
   return (
     <ServiceComponent
       services={services}
