@@ -8,7 +8,7 @@ interface Booking {
   order_id: string;
   order_number: string;
   created_at: string;
-  status:  string;
+  status: string;
   items: string;
   total: string;
 }
@@ -42,7 +42,7 @@ const DashboardPage: React.FC = () => {
         }
 
         const response = await axios.get<{ bookings: Booking[] }>(
-          'http://localhost:5000/api/user/bookings',
+          "http://localhost:5000/api/user/bookings",
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -82,10 +82,10 @@ const DashboardPage: React.FC = () => {
   // Format date function
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -97,22 +97,17 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex items-center space-x-4 mb-6">
             <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-bold">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {user?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <div>
-              <h2 className="text-xl font-semibold">{user?.name || 'User'}</h2>
-              <p className="text-gray-600">{user?.email || 'user@example.com'}</p>
+              <h2 className="text-xl font-semibold">{user?.name || "User"}</h2>
+              <p className="text-gray-600">{user?.email || "user@example.com"}</p>
               {user?.phone && <p className="text-gray-600">{user.phone}</p>}
             </div>
           </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <p className="text-gray-700">
-              Account Status: <span className="text-green-600 font-medium">Active</span>
-            </p>
-          </div>
         </div>
 
+        {/* My Bookings Section */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* My Bookings */}
           <div className="bg-white rounded-lg shadow-md p-6">
@@ -156,13 +151,13 @@ const DashboardPage: React.FC = () => {
                       </div>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          booking.status === 'Completed'
-                            ? 'bg-green-100 text-green-800'
-                            : booking.status === 'Pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : booking.status === 'Cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
+                          booking.status === "Completed"
+                            ? "bg-green-100 text-green-800"
+                            : booking.status === "Pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : booking.status === "Cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-blue-100 text-blue-800"
                         }`}
                       >
                         {booking.status}

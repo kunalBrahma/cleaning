@@ -10,7 +10,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signUp: (name: string, email: string, password: string, phone?: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -41,7 +40,7 @@ api.interceptors.request.use(
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<{ id: string; name: string; email: string; phone?: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Ensure loading is true initially
   const navigate = useNavigate();
   const isAuthenticated = !!user;
 
@@ -67,29 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Signup with backend
-  const signUp = async (name: string, email: string, password: string, phone?: string): Promise<boolean> => {
-    try {
-      const signupData = { name, email, password, phone: phone || "" };
-      const response = await api.post("/auth/signup", signupData);
-      const { user: userData, token } = response.data;
-
-      if (userData && token) {
-        localStorage.setItem("token", token);
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-        navigate("/dashboard");
-        return true;
-      } else {
-        console.error("Signup response missing user data or token");
-        return false;
-      }
-    } catch (error: any) {
-      console.error("Signup failed:", error.response?.data?.message || error.message);
-      return false;
-    }
-  };
-
+  // Logout function
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
@@ -97,16 +74,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     navigate("/");
   };
 
-  // Check if user is already logged in
+  // Verify token and fetch user data on page load
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
-    
+
     if (token && storedUser) {
       try {
         // Set user immediately from localStorage
         setUser(JSON.parse(storedUser));
-        
+
         // Verify token with backend
         const verifyToken = async () => {
           try {
@@ -121,10 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               logout();
             }
           } finally {
-            setLoading(false);
+            setLoading(false); // Set loading to false after verification
           }
         };
-        
+
         verifyToken();
       } catch (e) {
         console.error("Error parsing stored user data:", e);
@@ -132,12 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       }
     } else {
-      setLoading(false);
+      setLoading(false); // Set loading to false if no token or user is found
     }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, signUp, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -175,7 +175,7 @@ const CheckoutPage = () => {
   const onSubmit = async (data: CheckoutFormValues) => {
     console.log("Form submitted with data:", data);
     setIsLoading(true);
-    
+
     try {
       // Clear card fields for non-credit payments
       if (data.paymentMethod !== "credit") {
@@ -196,32 +196,31 @@ const CheckoutPage = () => {
       };
 
       // Get token from localStorage
-      const token = localStorage.getItem('token');
-      
-      let response;
-      
-      // If token exists, send authenticated request
-      if (token) {
-        response = await axios.post(`${API_URL}/api/checkout`, checkoutData, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      } else {
-        // If no token, send as guest (will be handled by backend)
-        response = await axios.post(`${API_URL}/api/checkout`, checkoutData, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-      }
+      const token = localStorage.getItem("token");
+
+      // Send request
+      const response = await axios.post(
+        `${API_URL}/api/checkout`,
+        checkoutData,
+        token
+          ? {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          : {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+      );
 
       const { orderSummary } = response.data;
-      
+
       // Store in sessionStorage for thank you page
       sessionStorage.setItem("orderSummary", JSON.stringify(orderSummary));
-      
+
       // Clear cart
       clearCart();
 
@@ -237,12 +236,12 @@ const CheckoutPage = () => {
     } catch (error) {
       console.error("Error in onSubmit:", error);
       let errorMessage = "Failed to place order. Please try again.";
-      
+
       // Extract more specific error message if available
       if (axios.isAxiosError(error) && error.response) {
         errorMessage = error.response.data.message || errorMessage;
       }
-      
+
       toast.error(errorMessage, {
         position: "top-right",
         autoClose: 3000,
