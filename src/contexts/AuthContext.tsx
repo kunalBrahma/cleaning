@@ -10,6 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  signUp: (name: string, email: string, password: string, phoneNumber: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -66,6 +67,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Signup with backend - match the name signUp to match your AuthDialog
+  // And map phoneNumber to phone for the backend
+  const signUp = async (name: string, email: string, password: string, phoneNumber: string): Promise<boolean> => {
+    try {
+      // Map phoneNumber to phone for the backend
+      const response = await api.post("/auth/signup", { 
+        name, 
+        email, 
+        password, 
+        phone: phoneNumber // Backend expects 'phone', not 'phoneNumber'
+      });
+      
+      const { user: userData, token } = response.data;
+
+      if (userData && token) {
+        localStorage.setItem("token", token);
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        navigate("/dashboard");
+        return true;
+      } else {
+        console.error("Signup response missing user data or token");
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Signup failed:", error.response?.data?.message || error.message);
+      return false;
+    }
+  };
+
   // Logout function
   const logout = () => {
     setUser(null);
@@ -114,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, signUp, logout }}>
       {children}
     </AuthContext.Provider>
   );
