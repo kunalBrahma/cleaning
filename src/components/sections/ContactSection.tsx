@@ -3,7 +3,7 @@ import { MapPin, Phone, Mail, Clock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import emailjs from '@emailjs/browser';
+import axios from 'axios';
 import Container from '../ui/Container';
 import SectionHeading from '../ui/SectionHeading';
 import Button from '../ui/Button';
@@ -17,7 +17,7 @@ const formSchema = z.object({
   contactName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
   contactEmail: z.string().email({ message: 'Please enter a valid email address' }),
   contactSubject: z.string().min(2, { message: 'Subject must be at least 2 characters' }),
-  contactMessage: z.string().min(10, { message: 'Message must be at least 10 characters' }),
+  contactMessage: z.string().min(0, { message: 'Message must be at least 10 characters' }),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -50,8 +50,6 @@ const ContactSection: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
-
     gsap.context(() => {
       gsap.fromTo(
         sectionRef.current,
@@ -89,24 +87,29 @@ const ContactSection: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID,
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-        data,
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-      );
+      await axios.post('http://localhost:5000/api/contact', {
+        name: data.contactName,
+        email: data.contactEmail,
+        subject: data.contactSubject,
+        message: data.contactMessage,
+      });
       reset();
     } catch (error) {
-      console.error('Failed to send email:', error);
+      console.error('Failed to submit contact form:', error);
+      // Optionally, display an error to the user
+      alert('Failed to submit the form. Please try again later.');
     }
   };
 
   return (
-    <section id="contact" className="py-20 bg-cover bg-fixed bg-center bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500"
-    style={{
-      backgroundImage:
-        'url("/banner2.webp")',
-    }} ref={sectionRef}>
+    <section
+      id="contact"
+      className="py-20 bg-cover bg-fixed bg-center bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500"
+      style={{
+        backgroundImage: 'url("/banner2.webp")',
+      }}
+      ref={sectionRef}
+    >
       <Container>
         <SectionHeading
           title="Contact Us"
@@ -138,12 +141,6 @@ const ContactSection: React.FC = () => {
                 <p className="text-gray-600 mb-6">
                   Thank you for your message. We'll get back to you soon!
                 </p>
-                <Button
-                  variant="primary"
-                  onClick={() => window.location.reload()}
-                >
-                  Send Another Message
-                </Button>
               </div>
             ) : (
               <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -14,8 +14,8 @@ import {
 import { gsap } from "gsap";
 import { FaCheck, FaTimesCircle, FaClipboardList } from "react-icons/fa";
 import { useCart } from "@/contexts/CartContext";
-import { toast } from "react-toastify"; // Import react-toastify
-import "react-toastify/dist/ReactToastify.css"; // Import toastify CSS
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface Service {
   id: string;
@@ -105,11 +105,11 @@ const ServiceComponent = ({
   };
 
   const handleAddToCart = (service: Service) => {
-    console.log("Adding to cart:", service); // Debug log
+    console.log("Adding to cart:", service);
     addToCart({
       id: service.id,
       name: service.title,
-      price: Number(service.price), // Ensure price is a number
+      price: Number(service.price),
       image: service.image,
       quantity: 1,
     });
@@ -123,7 +123,7 @@ const ServiceComponent = ({
       theme: "light",
       className: "bg-sky-400 text-white border-rose-800",
     });
-    console.log("Toast triggered for:", service.title); // Debug log
+    console.log("Toast triggered for:", service.title);
   };
 
   return (
@@ -164,12 +164,23 @@ const ServiceComponent = ({
                       </div>
                     </div>
                     <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
-                      <img
-                        src={service.image}
-                        className="w-full h-full object-cover"
-                        alt={service.title}
-                        loading="lazy"
-                      />
+                      {service.image ? (
+                        <img
+                          src={service.image}
+                          className="w-full h-full object-cover"
+                          alt={service.title}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error(`Failed to load image: ${service.image}`);
+                            
+                            e.currentTarget.alt = "Image not available";
+                          }}
+                        />
+                      ) : (
+                        <p className="text-red-500 text-center flex items-center justify-center h-full">
+                          Image not available
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -180,12 +191,6 @@ const ServiceComponent = ({
                   >
                     View More Details
                   </button>
-                  {/* <Button
-                    className="w-full bg-sky-500 hover:bg-sky-600 transition-colors"
-                    onClick={() => openWhatsApp(service.whatsappMessage)}
-                  >
-                    Book Now
-                  </Button> */}
                   <Button
                     className="w-full"
                     onClick={() => handleAddToCart(service)}
@@ -241,7 +246,9 @@ const ServiceComponent = ({
               <DialogTitle
                 className="text-2xl py-20 px-4 text-white font-bold rounded-lg bg-cover bg-center relative after:content-[''] after:absolute after:inset-0 after:bg-black/40 after:rounded-lg"
                 style={{
-                  backgroundImage: `url(${selectedService.image})`,
+                  backgroundImage: selectedService.image
+                    ? `url(${selectedService.image})`
+                    : `url(/fallback-image.jpg)`,
                 }}
               >
                 <span className="relative z-10">{selectedService.title}</span>

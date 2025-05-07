@@ -219,16 +219,27 @@ const HomeServiceComponent = ({
                         <span className="text-2xl text-rose-600 font-bold">
                           {service.price}
                         </span>
-                       
                       </div>
                     </div>
                     <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
-                      <img
-                        src={service.image}
-                        className="w-full h-full object-cover"
-                        alt={service.title}
-                        loading="lazy"
-                      />
+                      {service.image ? (
+                        <img
+                          src={service.image}
+                          className="w-full h-full object-cover"
+                          alt={service.title}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error(`Failed to load image: ${service.image}`);
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.parentElement!.innerHTML =
+                              '<p class="text-red-500 text-center flex items-center justify-center h-full">Image not available</p>';
+                          }}
+                        />
+                      ) : (
+                        <p className="text-red-500 text-center flex items-center justify-center h-full">
+                          Image not available
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -314,9 +325,12 @@ const HomeServiceComponent = ({
           >
             <DialogHeader className="flex-shrink-0">
               <DialogTitle
-                className="text-2xl py-20 px-4 text-white font-bold rounded-lg bg-cover bg-center relative after:content-[''] after:absolute after:inset-0 after:bg-black/40 after:rounded-lg"
+                className="text-2xl py-20 px-4 text-white font-bold rounded-lg bg-center relative after:content-[''] after:absolute after:inset-0 after:bg-black/40 after:rounded-lg"
                 style={{
-                  backgroundImage: `url(${selectedService.image})`,
+                  backgroundImage: selectedService.image
+                    ? `url(${selectedService.image})`
+                    : undefined,
+                  backgroundColor: !selectedService.image ? "#e5e7eb" : undefined, // Fallback to gray background
                 }}
               >
                 <span className="relative z-10">{selectedService.title}</span>
@@ -325,7 +339,6 @@ const HomeServiceComponent = ({
                 <span className="text-2xl font-bold text-rose-600">
                   {selectedService.price}
                 </span>
-                
               </div>
             </DialogHeader>
 

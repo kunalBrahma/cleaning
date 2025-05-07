@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from "axios"; // Make sure to install axios
+import axios, { AxiosError } from "axios";
 
 import {
   Form,
@@ -30,8 +30,46 @@ import {
 } from "@/components/ui/select";
 import Button from "@/components/ui/Button";
 
-// Define the API URL - adjust based on your environment
+// Define the API URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// Interfaces
+interface Coupon {
+  code: string;
+  discount: number;
+  type: "percentage" | "fixed";
+}
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+interface OrderSummary {
+  orderNumber: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  shippingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  items: CartItem[];
+  paymentMethod: string;
+  subtotal: number;
+  convenienceFee: number;
+  discount: number;
+  total: number;
+  orderDate: string;
+  status: string;
+}
 
 // Define the checkout form schema with Zod
 const checkoutSchema = z.object({
@@ -74,7 +112,7 @@ const checkoutSchema = z.object({
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
-const CheckoutPage = () => {
+const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
 
@@ -99,19 +137,39 @@ const CheckoutPage = () => {
     },
   });
 
-  const watchPaymentMethod = form.watch("paymentMethod");
+  const [couponCode, setCouponCode] = useState<string>("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string>("");
+  const [discount, setDiscount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
 
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [discount, setDiscount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  // Fetch coupons when component mounts
+  useEffect(() => {
+    const fetchCoupons = async () => {
+      try {
+        const response = await axios.get<{ message: string; coupons: Coupon[] }>(
+          `${API_URL}/api/coupons`
+        );
+        setAvailableCoupons(response.data.coupons);
+      } catch (error) {
+        console.error("Error fetching coupons:", error);
+        toast.error("Failed to load coupons. Please try again.", {
+          position: "top-right",
+          autoClose: 3000,
+          className: "bg-red-500 text-white border-red-600",
+        });
+      }
+    };
+
+    fetchCoupons();
+  }, []);
 
   // Calculate totals
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const calculateConvenienceFee = (subtotal: number) => {
+  const calculateConvenienceFee = (subtotal: number): number => {
     if (subtotal < 500) {
       return 39;
     }
@@ -120,12 +178,6 @@ const CheckoutPage = () => {
   };
   const convenienceFee = calculateConvenienceFee(subtotal);
   const total = subtotal + convenienceFee - discount;
-
-  const availableCoupons = [
-    { code: "CLEAN10", discount: 10, type: "percentage" },
-    { code: "SAVE20", discount: 20, type: "fixed" },
-    { code: "FIRST15", discount: 15, type: "percentage" },
-  ];
 
   const applyCoupon = () => {
     setIsLoading(true);
@@ -143,11 +195,16 @@ const CheckoutPage = () => {
         }
         setDiscount(discountAmount);
         setAppliedCoupon(validCoupon.code);
-        toast.success(`Coupon ${validCoupon.code} applied! Saved Rs. ${discountAmount.toFixed(2)}.`, {
-          position: "top-right",
-          autoClose: 3000,
-          className: "bg-green-500 text-white border-green-600",
-        });
+        toast.success(
+          `Coupon ${validCoupon.code} applied! Saved Rs. ${discountAmount.toFixed(
+            2
+          )}.`,
+          {
+            position: "top-right",
+            autoClose: 3000,
+            className: "bg-green-500 text-white border-green-600",
+          }
+        );
       } else {
         setDiscount(0);
         setAppliedCoupon("");
@@ -199,7 +256,7 @@ const CheckoutPage = () => {
       const token = localStorage.getItem("token");
 
       // Send request
-      const response = await axios.post(
+      const response = await axios.post<{ message: string; orderSummary: OrderSummary }>(
         `${API_URL}/api/checkout`,
         checkoutData,
         token
@@ -238,7 +295,7 @@ const CheckoutPage = () => {
       let errorMessage = "Failed to place order. Please try again.";
 
       // Extract more specific error message if available
-      if (axios.isAxiosError(error) && error.response) {
+      if (error instanceof AxiosError && error.response) {
         errorMessage = error.response.data.message || errorMessage;
       }
 
@@ -299,11 +356,7 @@ const CheckoutPage = () => {
         ) : (
           <Form {...form}>
             <form
-              onSubmit={(e) => {
-                form.handleSubmit(onSubmit)(e).catch(() => {
-                  console.log("Form validation errors:", form.formState.errors);
-                });
-              }}
+              onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-8"
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -504,25 +557,9 @@ const CheckoutPage = () => {
                             <FormControl>
                               <RadioGroup
                                 onValueChange={field.onChange}
-                                defaultValue={field.value}
+                                defaultValue="cash"
                                 className="space-y-4"
                               >
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value="credit" id="credit" />
-                                  </FormControl>
-                                  <FormLabel className="font-normal" htmlFor="credit">
-                                    Credit/Debit Card
-                                  </FormLabel>
-                                </FormItem>
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value="paypal" id="paypal" />
-                                  </FormControl>
-                                  <FormLabel className="font-normal" htmlFor="paypal">
-                                    PayPal
-                                  </FormLabel>
-                                </FormItem>
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                   <FormControl>
                                     <RadioGroupItem value="cash" id="cash" />
@@ -537,84 +574,6 @@ const CheckoutPage = () => {
                           </FormItem>
                         )}
                       />
-                      {watchPaymentMethod === "credit" && (
-                        <div className="mt-6 space-y-4 border p-4 rounded-md">
-                          <FormField
-                            control={form.control}
-                            name="cardNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Card Number</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="1234 5678 9012 3456"
-                                    {...field}
-                                    onChange={(e) => {
-                                      const value = e.target.value.replace(/\s/g, "");
-                                      const formattedValue = value
-                                        .replace(/\D/g, "")
-                                        .replace(/(\d{4})(?=\d)/g, "$1 ");
-                                      field.onChange(formattedValue.slice(0, 19));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="cardExpiry"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Expiry Date</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="MM/YY"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, "");
-                                        if (value.length > 2) {
-                                          field.onChange(
-                                            `${value.slice(0, 2)}/${value.slice(2, 4)}`
-                                          );
-                                        } else {
-                                          field.onChange(value);
-                                        }
-                                      }}
-                                      maxLength={5}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="cardCvv"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>CVV</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="123"
-                                      type="password"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, "");
-                                        field.onChange(value.slice(0, 4));
-                                      }}
-                                      maxLength={4}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 </div>

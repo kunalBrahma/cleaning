@@ -7,16 +7,30 @@ import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 import morgan from "morgan";
 import fetch from "node-fetch";
-
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from 'url';
 config();
 
 const app = express();
+
+// Define __dirname for ES module compatibility
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(morgan("dev"));
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
+      "http://127.0.0.1:5175",
+    ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
     optionsSuccessStatus: 204,
@@ -32,11 +46,17 @@ const authLimiter = rateLimit({
 });
 app.use("/auth/", authLimiter);
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Too many contact form submissions, please try again later.",
+});
+
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
+  password: process.env.DB_PASSWORD || "tansegan",
   database: process.env.DB_NAME || "cleaning",
   waitForConnections: true,
   connectionLimit: 10,
@@ -47,6 +67,36 @@ const pool = mysql.createPool({
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "0e02fa4596bb2cfe82c864dfaf2ef5c863659b84dd7e1c985d34f8f54a8e6435783c958f858cabe99cabaf45ce3b56b50fe7afab1d3268381da0ddd12a402a9c";
+
+// Configure multer for image uploads
+const uploadsDir = path.join(__dirname, 'public', 'uploads'); 
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Only images (jpeg, jpg, png, gif) are allowed'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 
 // Test database connection
 async function testDatabaseConnection() {
@@ -83,6 +133,120 @@ const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
+// Admin authentication middleware
+const authenticateAdmin = async (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Authentication token required" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const connection = await pool.getConnection();
+    try {
+      const [users] = await connection.query(
+        "SELECT id FROM user WHERE id = ? AND status = 'active'",
+        [decoded.userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      req.user = { id: decoded.userId, isAdmin: true };
+      next();
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Admin token verification error:", error);
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
+
+// Image upload endpoint (admin-only)
+
+// For /api/upload
+app.post('/api/upload', authenticateAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { filename } = req.file;
+    const filePath = `/uploads/${filename}`;
+    // Use the backend's host and port
+    const host = process.env.NODE_ENV === 'production' ? req.get('host') : 'localhost:5000';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    res.status(200).json({
+      message: 'File uploaded successfully',
+      file: {
+        filename,
+        path: filePath,
+        url: `${protocol}://${host}${filePath}`,
+      },
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({
+      message: 'Failed to upload file',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// For /api/admin/images
+app.post('/api/admin/images', authenticateAdmin, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image uploaded' });
+    }
+
+    const { filename } = req.file;
+    const filePath = `/uploads/${filename}`;
+    // Use the backend's host and port
+    const host = process.env.NODE_ENV === 'production' ? req.get('host') : 'localhost:5000';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    res.status(201).json({
+      message: 'Image uploaded successfully',
+      image: {
+        filename,
+        path: filePath,
+        url: `${protocol}://${host}${filePath}`,
+      },
+    });
+  } catch (error) {
+    console.error('Image upload error:', error);
+    res.status(500).json({
+      message: 'Failed to upload image',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File size exceeds 5MB limit' });
+    }
+    return res.status(400).json({ message: 'File upload error' });
+  }
+
+  if (err.message === 'Only images (jpeg, jpg, png, gif) are allowed') {
+    return res.status(400).json({ message: err.message });
+  }
+
+  res.status(500).json({
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
 
 // Auth endpoints
 app.post("/auth/signup", async (req, res) => {
@@ -222,253 +386,6 @@ app.get("/auth/me", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/auth/refresh", authenticateToken, async (req, res) => {
-  try {
-    const newToken = jwt.sign({ userId: req.user.id }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    return res.status(200).json({ token: newToken });
-  } catch (error) {
-    console.error("Refresh token error:", error);
-    return res.status(500).json({ message: "Failed to refresh token" });
-  }
-});
-
-// Get all services grouped by category
-app.get("/api/services-by-category", async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    try {
-      const [services] = await connection.query("SELECT * FROM services");
-
-      const servicesByCategory = {};
-      services.forEach((service) => {
-        if (!servicesByCategory[service.category]) {
-          servicesByCategory[service.category] = [];
-        }
-        servicesByCategory[service.category].push(service);
-      });
-
-      res.status(200).json(servicesByCategory);
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Fetch services error:", error);
-    res.status(500).json({
-      message: "Failed to fetch services",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-});
-
-// Get all active services
-app.get("/api/services", async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    try {
-      const [services] = await connection.query(
-        "SELECT * FROM main WHERE status = 'Active'"
-      );
-
-      res.status(200).json(services);
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Error fetching services:", error);
-    res.status(500).json({
-      message: "Failed to fetch services",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-});
-
-// Checkout endpoint
-app.post("/api/checkout", async (req, res) => {
-  const {
-    firstName,
-    lastName,
-    email,
-    phone,
-    addressLine1,
-    addressLine2,
-    city,
-    state,
-    zipCode,
-    country,
-    paymentMethod,
-    cartItems,
-    subtotal,
-    convenienceFee,
-    discount,
-    total,
-    couponCode,
-  } = req.body;
-
-  // Validate required fields
-  if (
-    !firstName ||
-    !lastName ||
-    !email ||
-    !phone ||
-    !addressLine1 ||
-    !city ||
-    !state ||
-    !zipCode ||
-    !country ||
-    !paymentMethod ||
-    !cartItems ||
-    !Array.isArray(cartItems) ||
-    cartItems.length === 0 ||
-    subtotal == null ||
-    convenienceFee == null ||
-    total == null
-  ) {
-    return res
-      .status(400)
-      .json({ message: "All required fields must be provided" });
-  }
-
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  let profileId = null;
-
-  // If token exists, verify it and extract user ID
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      profileId = decoded.userId;
-    } catch (error) {
-      console.error("Token verification error:", error);
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-  }
-
-  const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
-
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    // Insert into orders table
-    const [orderResult] = await connection.query(
-      `
-      INSERT INTO orders (
-        order_number, profile_id, guest_email, guest_phone, first_name, last_name,
-        address_line1, address_line2, city, state, zip_code, country,
-        payment_method, subtotal, convenience_fee, discount, total, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        orderNumber,
-        profileId,
-        email, // Always store email
-        phone, // Always store phone
-        firstName,
-        lastName,
-        addressLine1,
-        addressLine2 || null,
-        city,
-        state,
-        zipCode,
-        country,
-        paymentMethod,
-        subtotal,
-        convenienceFee,
-        discount || 0,
-        total,
-        "Pending", // Initial status
-      ]
-    );
-
-    const orderId = orderResult.insertId;
-
-    // Insert order items
-    for (const item of cartItems) {
-      if (!item.id || !item.name || !item.quantity || !item.price) {
-        throw new Error("Invalid cart item data");
-      }
-      await connection.query(
-        `
-        INSERT INTO order_items (
-          order_id, product_id, product_name, quantity, price
-        ) VALUES (?, ?, ?, ?, ?)
-        `,
-        [orderId, item.id, item.name, item.quantity, item.price]
-      );
-    }
-
-    // Handle coupon (if provided and coupons table exists)
-    if (couponCode && discount > 0) {
-      try {
-        const [coupon] = await connection.query(
-          "SELECT * FROM coupons WHERE code = ? AND is_active = TRUE",
-          [couponCode]
-        );
-
-        if (coupon.length > 0) {
-          await connection.query(
-            "INSERT INTO order_coupons (order_id, coupon_id, discount_applied) VALUES (?, ?, ?)",
-            [orderId, coupon[0].coupon_id, discount]
-          );
-        }
-      } catch (error) {
-        console.error("Error handling coupon:", error);
-        // Continue with order creation even if coupon handling fails
-      }
-    }
-
-    await connection.commit();
-
-    // Send WhatsApp notification
-    const message = `Thank you for your order, ${firstName} ${lastName}! Your order number is ${orderNumber}. Total: Rs. ${total.toFixed(
-      2
-    )}.`;
-    sendWhatsAppNotification(phone, message);
-
-    // Return order summary
-    const orderSummary = {
-      orderNumber,
-      customerName: `${firstName} ${lastName}`,
-      email,
-      phone,
-      shippingAddress: {
-        line1: addressLine1,
-        line2: addressLine2 || "",
-        city,
-        state,
-        zipCode,
-        country,
-      },
-      items: cartItems,
-      paymentMethod,
-      subtotal,
-      convenienceFee,
-      discount: discount || 0,
-      total,
-      orderDate: new Date().toISOString(),
-      status: "Pending",
-    };
-
-    res
-      .status(201)
-      .json({ message: "Order placed successfully", orderSummary });
-  } catch (error) {
-    if (connection) await connection.rollback();
-    console.error("Checkout error:", error);
-    res.status(500).json({
-      message: "Failed to place order",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  } finally {
-    if (connection) connection.release();
-  }
-});
-
-// Make sure this endpoint is properly defined and not commented out
-// Get bookings/orders for authenticated user
 app.get("/api/user/bookings", authenticateToken, async (req, res) => {
   try {
     const profileId = req.user ? req.user.id : null;
@@ -528,9 +445,635 @@ app.get("/api/user/bookings", authenticateToken, async (req, res) => {
   }
 });
 
-// WhatsApp notification function with error handling
+
+app.post("/auth/refresh", authenticateToken, async (req, res) => {
+  try {
+    const newToken = jwt.sign({ userId: req.user.id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+    return res.status(200).json({ token: newToken });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(500).json({ message: "Failed to refresh token" });
+  }
+});
+
+// Admin auth endpoints
+app.post("/auth/admin/signup", async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Name, email, and password are required" });
+    }
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existingUsers] = await connection.query(
+        "SELECT id FROM user WHERE email = ?",
+        [email]
+      );
+
+      if (existingUsers.length > 0) {
+        return res.status(409).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await connection.query(
+        "INSERT INTO user (name, email, phone, password, status) VALUES (?, ?, ?, ?, ?)",
+        [name, email, phone, hashedPassword, "inactive"]
+      );
+
+      return res.status(201).json({
+        message: "Admin account created successfully. Waiting for activation.",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Admin signup error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.post("/auth/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    console.log("Login attempt for email:", email);
+    if (!email || !password) {
+      console.log("Missing email or password");
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      console.log("Querying user table for email:", email);
+      const [users] = await connection.query(
+        "SELECT * FROM user WHERE email = ?",
+        [email]
+      );
+
+      console.log("Query result:", users);
+      if (users.length === 0) {
+        console.log("No user found for email:", email);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const user = users[0];
+      const userStatus = user.status ? user.status.toLowerCase() : "inactive";
+
+      console.log("User found:", {
+        id: user.id,
+        email: user.email,
+        status: userStatus,
+      });
+
+      if (userStatus !== "active") {
+        console.log("User is not active:", { id: user.id, status: userStatus });
+        return res.status(403).json({
+          message: "Admin account not yet activated. Please contact super admin.",
+        });
+      }
+
+      console.log("Verifying password for user:", email);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        console.log("Invalid password for user:", email);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      console.log("Generating token for user:", email);
+      const token = jwt.sign(
+        { userId: user.id, isAdmin: true },
+        JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+
+      const { password: _, ...userWithoutPassword } = user;
+
+      console.log("Login successful for user:", email);
+      return res.status(200).json({
+        message: "Admin login successful",
+        user: { ...userWithoutPassword, status: userStatus },
+        token,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/auth/admin/me", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [users] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user WHERE id = ?",
+        [req.user.id]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+
+      const user = users[0];
+      const userStatus = user.status ? user.status.toLowerCase() : "inactive";
+
+      return res.status(200).json({
+        message: "Admin data retrieved",
+        user: { ...user, status: userStatus },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get admin error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.put("/auth/admin/activate/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM user WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+
+      await connection.query("UPDATE user SET status = 'active' WHERE id = ?", [
+        id,
+      ]);
+
+      const [updatedAdmin] = await connection.query(
+        "SELECT id, name, email, status FROM user WHERE id = ?",
+        [id]
+      );
+
+      return res.status(200).json({
+        message: "Admin account activated successfully",
+        user: updatedAdmin[0],
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Admin activation error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all services grouped by category
+app.get("/api/services-by-category", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [services] = await connection.query("SELECT * FROM services");
+
+      const servicesByCategory = {};
+      services.forEach((service) => {
+        if (!servicesByCategory[service.category]) {
+          servicesByCategory[service.category] = [];
+        }
+        servicesByCategory[service.category].push({
+          ...service,
+          image: service.image
+            ? `http://localhost:5173${service.image}`
+            : null,
+        });
+      });
+
+      res.status(200).json(servicesByCategory);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch services error:", error);
+    res.status(500).json({
+      message: "Failed to fetch services",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all active services
+app.get("/api/services", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [services] = await connection.query(
+        "SELECT * FROM main WHERE status = 'Active'"
+      );
+
+      res.status(200).json(services);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    res.status(500).json({
+      message: "Failed to fetch services",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Checkout endpoint
+app.post("/api/checkout", async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    addressLine1,
+    addressLine2,
+    city,
+    state,
+    zipCode,
+    country,
+    paymentMethod,
+    cartItems,
+    subtotal,
+    convenienceFee,
+    discount,
+    total,
+    couponCode,
+  } = req.body;
+
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phone ||
+    !addressLine1 ||
+    !city ||
+    !state ||
+    !zipCode ||
+    !country ||
+    !paymentMethod ||
+    !cartItems ||
+    !Array.isArray(cartItems) ||
+    cartItems.length === 0 ||
+    subtotal == null ||
+    convenienceFee == null ||
+    total == null
+  ) {
+    return res
+      .status(400)
+      .json({ message: "All required fields must be provided" });
+  }
+
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  let profileId = null;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      profileId = decoded.userId;
+    } catch (error) {
+      console.error("Token verification error:", error);
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+  }
+
+  const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [orderResult] = await connection.query(
+      `
+      INSERT INTO orders (
+        order_number, profile_id, guest_email, guest_phone, first_name, last_name,
+        address_line1, address_line2, city, state, zip_code, country,
+        payment_method, subtotal, convenience_fee, discount, total, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        orderNumber,
+        profileId,
+        email,
+        phone,
+        firstName,
+        lastName,
+        addressLine1,
+        addressLine2 || null,
+        city,
+        state,
+        zipCode,
+        country,
+        paymentMethod,
+        subtotal,
+        convenienceFee,
+        discount || 0,
+        total,
+        "Pending",
+      ]
+    );
+
+    const orderId = orderResult.insertId;
+
+    for (const item of cartItems) {
+      if (!item.id || !item.name || !item.quantity || !item.price) {
+        throw new Error("Invalid cart item data");
+      }
+      await connection.query(
+        `
+        INSERT INTO order_items (
+          order_id, product_id, product_name, quantity, price
+        ) VALUES (?, ?, ?, ?, ?)
+        `,
+        [orderId, item.id, item.name, item.quantity, item.price]
+      );
+    }
+
+    if (couponCode && discount > 0) {
+      try {
+        const [coupon] = await connection.query(
+          "SELECT * FROM coupons WHERE code = ? AND is_active = TRUE",
+          [couponCode]
+        );
+
+        if (coupon.length > 0) {
+          await connection.query(
+            "INSERT INTO order_coupons (order_id, coupon_id, discount_applied) VALUES (?, ?, ?)",
+            [orderId, coupon[0].coupon_id, discount]
+          );
+        }
+      } catch (error) {
+        console.error("Error handling coupon:", error);
+      }
+    }
+
+    await connection.commit();
+
+    const message = `Thank you for your order, ${firstName} ${lastName}! Your order number is ${orderNumber}. Total: Rs. ${total.toFixed(
+      2
+    )}.`;
+    sendWhatsAppNotification(phone, message);
+
+    const orderSummary = {
+      orderNumber,
+      customerName: `${firstName} ${lastName}`,
+      email,
+      phone,
+      shippingAddress: {
+        line1: addressLine1,
+        line2: addressLine2 || "",
+        city,
+        state,
+        zipCode,
+        country,
+      },
+      items: cartItems,
+      paymentMethod,
+      subtotal,
+      convenienceFee,
+      discount: discount || 0,
+      total,
+      orderDate: new Date().toISOString(),
+      status: "Pending",
+    };
+
+    res
+      .status(201)
+      .json({ message: "Order placed successfully", orderSummary });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Checkout error:", error);
+    res.status(500).json({
+      message: "Failed to place order",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// Get bookings/orders for authenticated user
+app.get("/api/user/bookings",  async (req, res) => {
+  try {
+    const profileId = req.user ? req.user.id : null;
+
+    if (!profileId) {
+      return res
+        .status(401)
+        .json({ message: "Authentication required to view bookings" });
+    }
+
+    const [orders] = await pool.query(
+      `
+      SELECT 
+        o.order_id,
+        o.order_number,
+        o.first_name,
+        o.last_name,
+        o.guest_email,
+        o.guest_phone,
+        o.address_line1,
+        o.address_line2,
+        o.city,
+        o.state,
+        o.zip_code,
+        o.country,
+        o.payment_method,
+        o.subtotal,
+        o.convenience_fee,
+        o.discount,
+        o.total,
+        o.status,
+        o.created_at,
+        o.updated_at,
+        GROUP_CONCAT(
+          CONCAT(oi.product_name, ' (x', oi.quantity, ')')
+          SEPARATOR ', '
+        ) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.order_id = oi.order_id
+      WHERE o.profile_id = ?
+      GROUP BY o.order_id
+      ORDER BY o.created_at DESC
+      `,
+      [profileId]
+    );
+
+    res.status(200).json({
+      message: "Bookings retrieved successfully",
+      bookings: orders,
+    });
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({
+      message: "Failed to fetch bookings",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all orders (no authentication required)
+app.get("/api/orders", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [orders] = await connection.query(
+        `
+        SELECT 
+          o.order_id,
+          o.order_number,
+          o.first_name,
+          o.last_name,
+          o.guest_email,
+          o.guest_phone,
+          o.address_line1,
+          o.address_line2,
+          o.city,
+          o.state,
+          o.zip_code,
+          o.country,
+          o.payment_method,
+          o.subtotal,
+          o.convenience_fee,
+          o.discount,
+          o.total,
+          o.status,
+          o.created_at,
+          o.updated_at,
+          GROUP_CONCAT(
+            CONCAT(oi.product_name, ' (x', oi.quantity, ')')
+            SEPARATOR ', '
+          ) AS items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.order_id = oi.order_id
+        GROUP BY o.order_id
+        ORDER BY o.created_at DESC
+        `
+      );
+
+      const formattedOrders = orders.map((order) => ({
+        ...order,
+        created_at: order.created_at
+          ? new Date(order.created_at).toISOString()
+          : null,
+        updated_at: order.updated_at
+          ? new Date(order.updated_at).toISOString()
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Orders retrieved successfully",
+        orders: formattedOrders,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({
+      message: "Failed to fetch orders",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Contact form submission
+app.post("/api/contact", contactLimiter, async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    console.log("Received contact form data:", { name, email, subject, message });
+
+    if (!name || !email || !subject) {
+      console.log("Validation failed: Missing required fields", req.body);
+      return res
+        .status(400)
+        .json({ message: "Name, email, and subject are required" });
+    }
+    if (name.length < 2) {
+      console.log("Validation failed: Name too short", { name });
+      return res
+        .status(400)
+        .json({ message: "Name must be at least 2 characters" });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      console.log("Validation failed: Invalid email", { email });
+      return res
+        .status(400)
+        .json({ message: "Please enter a valid email address" });
+    }
+    if (subject.length < 2) {
+      console.log("Validation failed: Subject too short", { subject });
+      return res
+        .status(400)
+        .json({ message: "Subject must be at least 2 characters" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [result] = await connection.query(
+        "INSERT INTO contact_us (name, email, subject, message) VALUES (?, ?, ?, ?)",
+        [name, email, subject, message || ""]
+      );
+      console.log("Contact form saved:", { contactId: result.insertId });
+
+      res.status(201).json({
+        message: "Contact form submitted successfully",
+        contactId: result.insertId,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Contact form submission error:", error);
+    res.status(500).json({
+      message: "Failed to submit contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 async function sendWhatsAppNotification(phoneNumber, message) {
   try {
+    let formattedPhoneNumber = phoneNumber.trim();
+    if (!formattedPhoneNumber.startsWith("+")) {
+      formattedPhoneNumber = `+91${formattedPhoneNumber}`;
+    }
+
     const options = {
       method: "POST",
       headers: {
@@ -539,7 +1082,7 @@ async function sendWhatsAppNotification(phoneNumber, message) {
       body: new URLSearchParams({
         appkey: "991b16da-8631-4b78-aa70-24c6b4eb8d51",
         authkey: "oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP",
-        to: phoneNumber,
+        to: formattedPhoneNumber,
         message: message,
       }),
     };
@@ -549,7 +1092,6 @@ async function sendWhatsAppNotification(phoneNumber, message) {
       options
     );
 
-    // Check if the response is JSON
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       const data = await response.json();
@@ -565,6 +1107,1603 @@ async function sendWhatsAppNotification(phoneNumber, message) {
     return null;
   }
 }
+
+// Create a new service
+app.post("/api/main", async (req, res) => {
+  try {
+    const { category, subCategory, icon, path } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ message: "Category is required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [result] = await connection.query(
+        "INSERT INTO main (category, subCategory, icon, path, status) VALUES (?, ?, ?, ?, ?)",
+        [category, subCategory || null, icon || null, path || null, "Active"]
+      );
+
+      const [newService] = await connection.query(
+        "SELECT * FROM main WHERE id = ?",
+        [result.insertId]
+      );
+
+      res.status(201).json({
+        message: "Service created successfully",
+        service: newService[0],
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Create service error:", error);
+    res.status(500).json({
+      message: "Failed to create service",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all services (including inactive)
+app.get("/api/main/all", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [services] = await connection.query(
+        "SELECT * FROM main WHERE status = 'Active' ORDER BY createdAt DESC"
+      );
+
+      res.status(200).json(services);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get all services error:", error);
+    res.status(500).json({
+      message: "Failed to fetch services",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get service by ID
+app.get("/api/main/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [services] = await connection.query(
+        "SELECT * FROM main WHERE id = ?",
+        [id]
+      );
+
+      if (services.length === 0) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      res.status(200).json(services[0]);
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get service error:", error);
+    res.status(500).json({
+      message: "Failed to fetch service",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Update service
+app.put("/api/main/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category, subCategory, icon, path, status } = req.body;
+
+    if (!category) {
+      return res.status(400).json({ message: "Category is required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM main WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      await connection.query(
+        "UPDATE main SET category = ?, subCategory = ?, icon = ?, path = ?, status = ? WHERE id = ?",
+        [category, subCategory || null, icon || null, path || null, status || "Active", id]
+      );
+
+      const [updatedService] = await connection.query(
+        "SELECT * FROM main WHERE id = ?",
+        [id]
+      );
+
+      res.status(200).json({
+        message: "Service updated successfully",
+        service: updatedService[0],
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update service error:", error);
+    res.status(500).json({
+      message: "Failed to update service",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// "Delete" service (update status to inActive)
+app.delete("/api/main/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM main WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      await connection.query("UPDATE main SET status = 'inActive' WHERE id = ?", [
+        id,
+      ]);
+
+      res.status(200).json({ message: "Service marked as inactive" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete service error:", error);
+    res.status(500).json({
+      message: "Failed to update service status",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Update order status (Admin only)
+app.put("/api/orders/:id/status", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || typeof status !== "string" || status.trim() === "") {
+      return res
+        .status(400)
+        .json({ message: "Status is required and must be a non-empty string" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT order_id, order_number, first_name, last_name, guest_phone FROM orders WHERE order_id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const order = existing[0];
+
+      await connection.query(
+        "UPDATE orders SET status = ?, updated_at = NOW() WHERE order_id = ?",
+        [status.trim(), id]
+      );
+
+      const [updatedOrder] = await connection.query(
+        `
+        SELECT 
+          o.order_id,
+          o.order_number,
+          o.first_name,
+          o.last_name,
+          o.guest_email,
+          o.guest_phone,
+          o.address_line1,
+          o.address_line2,
+          o.city,
+          o.state,
+          o.zip_code,
+          o.country,
+          o.payment_method,
+          o.subtotal,
+          o.convenience_fee,
+          o.discount,
+          o.total,
+          o.status,
+          o.created_at,
+          o.updated_at,
+          GROUP_CONCAT(
+            CONCAT(oi.product_name, ' (x', oi.quantity, ')')
+            SEPARATOR ', '
+          ) AS items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.order_id = oi.order_id
+        WHERE o.order_id = ?
+        GROUP BY o.order_id
+        `,
+        [id]
+      );
+
+      if (updatedOrder.length === 0) {
+        return res.status(404).json({ message: "Order not found after update" });
+      }
+
+      const formattedOrder = {
+        ...updatedOrder[0],
+        created_at: updatedOrder[0].created_at
+          ? new Date(updatedOrder[0].created_at).toISOString()
+          : null,
+        updated_at: updatedOrder[0].updated_at
+          ? new Date(updatedOrder[0].updated_at).toISOString()
+          : null,
+      };
+
+      const message = `Dear ${order.first_name} ${order.last_name}, your order (${order.order_number}) status has been ${status.trim()}.`;
+      await sendWhatsAppNotification(order.guest_phone, message);
+
+      res.status(200).json({
+        message: "Order status updated successfully",
+        order: formattedOrder,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update order status error:", error);
+    res.status(500).json({
+      message: "Failed to update order status",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// OFFERINGS CRUD OPERATIONS
+
+// Create a new offering (admin-only)
+app.post("/api/offerings",  async (req, res) => {
+  try {
+    const {
+      service_code,
+      name,
+      description,
+      icon,
+      price,
+      category,
+      subCategory,
+      image,
+      features,
+      requirements,
+      exclusions,
+      pricetable,
+      popular,
+      whatsapp_message,
+    } = req.body;
+
+    if (!service_code || !name) {
+      return res
+        .status(400)
+        .json({ message: "Service code and name are required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM services WHERE service_code = ?",
+        [service_code]
+      );
+
+      if (existing.length > 0) {
+        return res.status(409).json({ message: "Service code already exists" });
+      }
+
+      const [result] = await connection.query(
+        `INSERT INTO services (
+          service_code, name, description, icon, price, category, subCategory,
+          image, features, requirements, exclusions, pricetable, popular, whatsapp_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          service_code,
+          name,
+          description || null,
+          icon || null,
+          price || null,
+          category || null,
+          subCategory || null,
+          image || null,
+          features || null,
+          requirements || null,
+          exclusions || null,
+          pricetable || null,
+          popular || 0,
+          whatsapp_message || null,
+        ]
+      );
+
+      const [newOffering] = await connection.query(
+        "SELECT * FROM services WHERE id = ?",
+        [result.insertId]
+      );
+
+      res.status(201).json({
+        message: "Offering created successfully",
+        offering: {
+          ...newOffering[0],
+          image: newOffering[0].image
+            ? `http://localhost:5173${newOffering[0].image}`
+            : null,
+        },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Create offering error:", error);
+    res.status(500).json({
+      message: "Failed to create offering",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all offerings
+app.get("/api/offerings", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [offerings] = await connection.query(
+        "SELECT * FROM services ORDER BY id DESC"
+      );
+
+      const formattedOfferings = offerings.map((offering) => ({
+        ...offering,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Offerings retrieved successfully",
+        offerings: formattedOfferings,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get all offerings error:", error);
+    res.status(500).json({
+      message: "Failed to fetch offerings",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get offering by ID
+app.get("/api/offerings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [offerings] = await connection.query(
+        "SELECT * FROM services WHERE id = ?",
+        [id]
+      );
+
+      if (offerings.length === 0) {
+        return res.status(404).json({ message: "Offering not found" });
+      }
+
+      res.status(200).json({
+        message: "Offering retrieved successfully",
+        offering: {
+          ...offerings[0],
+          image: offerings[0].image
+            ? `http://localhost:5173${offerings[0].image}`
+            : null,
+        },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get offering error:", error);
+    res.status(500).json({
+      message: "Failed to fetch offering",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get offering by service_code
+app.get("/api/offerings/code/:service_code", async (req, res) => {
+  try {
+    const { service_code } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [offerings] = await connection.query(
+        "SELECT * FROM services WHERE service_code = ?",
+        [service_code]
+      );
+
+      if (offerings.length === 0) {
+        return res.status(404).json({ message: "Offering not found" });
+      }
+
+      res.status(200).json({
+        message: "Offering retrieved successfully",
+        offering: {
+          ...offerings[0],
+          image: offerings[0].image
+            ? `http://localhost:5173${offerings[0].image}`
+            : null,
+        },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get offering by code error:", error);
+    res.status(500).json({
+      message: "Failed to fetch offering",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Update offering (admin-only)
+app.put("/api/offerings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      service_code,
+      name,
+      description,
+      icon,
+      price,
+      category,
+      subCategory,
+      image,
+      features,
+      requirements,
+      exclusions,
+      pricetable,
+      popular,
+      whatsapp_message,
+    } = req.body;
+
+    if (!service_code || !name) {
+      return res
+        .status(400)
+        .json({ message: "Service code and name are required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id, image FROM services WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Offering not found" });
+      }
+
+      const [codeConflict] = await connection.query(
+        "SELECT id FROM services WHERE service_code = ? AND id != ?",
+        [service_code, id]
+      );
+
+      if (codeConflict.length > 0) {
+        return res
+          .status(409)
+          .json({ message: "Service code already in use by another offering" });
+      }
+
+      // Delete old image if a new one is provided and different
+      if (image && existing[0].image && image !== existing[0].image) {
+        const oldImagePath = path.join(
+          uploadsDir,
+          path.basename(existing[0].image)
+        );
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+
+      await connection.query(
+        `UPDATE services SET 
+          service_code = ?,
+          name = ?,
+          description = ?,
+          icon = ?,
+          price = ?,
+          category = ?,
+          subCategory = ?,
+          image = ?,
+          features = ?,
+          requirements = ?,
+          exclusions = ?,
+          pricetable = ?,
+          popular = ?,
+          whatsapp_message = ?
+        WHERE id = ?`,
+        [
+          service_code,
+          name,
+          description || null,
+          icon || null,
+          price || null,
+          category || null,
+          subCategory || null,
+          image || null,
+          features || null,
+          requirements || null,
+          exclusions || null,
+          pricetable || null,
+          popular || 0,
+          whatsapp_message || null,
+          id,
+        ]
+      );
+
+      const [updatedOffering] = await connection.query(
+        "SELECT * FROM services WHERE id = ?",
+        [id]
+      );
+
+      res.status(200).json({
+        message: "Offering updated successfully",
+        offering: {
+          ...updatedOffering[0],
+          image: updatedOffering[0].image
+            ? `http://localhost:5173${updatedOffering[0].image}`
+            : null,
+        },
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update offering error:", error);
+    res.status(500).json({
+      message: "Failed to update offering",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Delete offering (admin-only)
+app.delete("/api/offerings/:id",  async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id, image FROM services WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Offering not found" });
+      }
+
+      // Delete associated image
+      if (existing[0].image) {
+        const imagePath = path.join(uploadsDir, path.basename(existing[0].image));
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+
+      await connection.query("DELETE FROM services WHERE id = ?", [id]);
+
+      res.status(200).json({ message: "Offering deleted successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete offering error:", error);
+    res.status(500).json({
+      message: "Failed to delete offering",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get popular offerings
+app.get("/api/offerings/popular", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [offerings] = await connection.query(
+        "SELECT * FROM services WHERE popular = 1 ORDER BY id DESC"
+      );
+
+      const formattedOfferings = offerings.map((offering) => ({
+        ...offering,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Popular offerings retrieved successfully",
+        offerings: formattedOfferings,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get popular offerings error:", error);
+    res.status(500).json({
+      message: "Failed to fetch popular offerings",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get offerings by category
+app.get("/api/offerings/category/:category", async (req, res) => {
+  try {
+    const { category } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [offerings] = await connection.query(
+        "SELECT * FROM services WHERE category = ? ORDER BY id DESC",
+        [category]
+      );
+
+      const formattedOfferings = offerings.map((offering) => ({
+        ...offering,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Offerings by category retrieved successfully",
+        offerings: formattedOfferings,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get offerings by category error:", error);
+    res.status(500).json({
+      message: "Failed to fetch offerings by category",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Profile CRUD Operations (Admin only)
+app.get("/api/profiles", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [profiles] = await connection.query(
+        "SELECT id, name, email, phone, created_at FROM profile ORDER BY created_at DESC"
+      );
+
+      const formattedProfiles = profiles.map((profile) => ({
+        ...profile,
+        created_at: profile.created_at
+          ? new Date(profile.created_at).toISOString()
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Profiles retrieved successfully",
+        profiles: formattedProfiles,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get profiles error:", error);
+    res.status(500).json({
+      message: "Failed to fetch profiles",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/profiles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [profiles] = await connection.query(
+        "SELECT id, name, email, phone, created_at FROM profile WHERE id = ?",
+        [id]
+      );
+
+      if (profiles.length === 0) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+
+      const formattedProfile = {
+        ...profiles[0],
+        created_at: profiles[0].created_at
+          ? new Date(profiles[0].created_at).toISOString()
+          : null,
+      };
+
+      res.status(200).json({
+        message: "Profile retrieved successfully",
+        profile: formattedProfile,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({
+      message: "Failed to fetch profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.post("/api/profiles", authenticateAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Name, email, and password are required" });
+    }
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existingUsers] = await connection.query(
+        "SELECT id FROM profile WHERE email = ?",
+        [email]
+      );
+
+      if (existingUsers.length > 0) {
+        return res.status(409).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [result] = await connection.query(
+        "INSERT INTO profile (name, email, phone, password) VALUES (?, ?, ?, ?)",
+        [name, email, phone || null, hashedPassword]
+      );
+
+      const [newProfile] = await connection.query(
+        "SELECT id, name, email, phone, created_at FROM profile WHERE id = ?",
+        [result.insertId]
+      );
+
+      const formattedProfile = {
+        ...newProfile[0],
+        created_at: newProfile[0].created_at
+          ? new Date(newProfile[0].created_at).toISOString()
+          : null,
+      };
+
+      res.status(201).json({
+        message: "Profile created successfully",
+        profile: formattedProfile,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Create profile error:", error);
+    res.status(500).json({
+      message: "Failed to create profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.put("/api/profiles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, password } = req.body;
+
+    if (!name || !email) {
+      return res
+        .status(400)
+        .json({ message: "Name and email are required" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM profile WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+
+      const [emailConflict] = await connection.query(
+        "SELECT id FROM profile WHERE email = ? AND id != ?",
+        [email, id]
+      );
+
+      if (emailConflict.length > 0) {
+        return res
+          .status(409)
+          .json({ message: "Email already in use by another profile" });
+      }
+
+      let hashedPassword = undefined;
+      if (password && password.length >= 8) {
+        hashedPassword = await bcrypt.hash(password, 10);
+      } else if (password) {
+        return res
+          .status(400)
+          .json({ message: "Password must be at least 8 characters" });
+      }
+
+      await connection.query(
+        `UPDATE profile SET 
+          name = ?,
+          email = ?,
+          phone = ?,
+          ${password ? "password = ?," : ""}
+          created_at = created_at
+        WHERE id = ?`,
+        [
+          name,
+          email,
+          phone || null,
+          ...(password ? [hashedPassword] : []),
+          id,
+        ]
+      );
+
+      const [updatedProfile] = await connection.query(
+        "SELECT id, name, email, phone, created_at FROM profile WHERE id = ?",
+        [id]
+      );
+
+      const formattedProfile = {
+        ...updatedProfile[0],
+        created_at: updatedProfile[0].created_at
+          ? new Date(updatedProfile[0].created_at).toISOString()
+          : null,
+      };
+
+      res.status(200).json({
+        message: "Profile updated successfully",
+        profile: formattedProfile,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      message: "Failed to update profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.delete("/api/profiles/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM profile WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+
+      await connection.query("DELETE FROM profile WHERE id = ?", [id]);
+
+      res.status(200).json({ message: "Profile deleted successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete profile error:", error);
+    res.status(500).json({
+      message: "Failed to delete profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// User CRUD Operations (Admin only)
+app.get("/api/users", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [users] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user ORDER BY created_at DESC"
+      );
+
+      const formattedUsers = users.map((user) => ({
+        ...user,
+        created_at: user.created_at
+          ? new Date(user.created_at).toISOString()
+          : null,
+        status: user.status ? user.status.toLowerCase() : "inactive",
+      }));
+
+      res.status(200).json({
+        message: "Users retrieved successfully",
+        users: formattedUsers,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get users error:", error);
+    res.status(500).json({
+      message: "Failed to fetch users",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [users] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user WHERE id = ?",
+        [id]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const formattedUser = {
+        ...users[0],
+        created_at: users[0].created_at
+          ? new Date(users[0].created_at).toISOString()
+          : null,
+        status: users[0].status ? users[0].status.toLowerCase() : "inactive",
+      };
+
+      res.status(200).json({
+        message: "User retrieved successfully",
+        user: formattedUser,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
+      message: "Failed to fetch user",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.post("/api/users", authenticateAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, password, status } = req.body;
+
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Name, email, and password are required" });
+    }
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
+    }
+    if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+      return res
+        .status(400)
+        .json({ message: "Status must be 'active' or 'inactive'" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existingUsers] = await connection.query(
+        "SELECT id FROM user WHERE email = ?",
+        [email]
+      );
+
+      if (existingUsers.length > 0) {
+        return res.status(409).json({ message: "Email already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [result] = await connection.query(
+        "INSERT INTO user (name, email, phone, password, status) VALUES (?, ?, ?, ?, ?)",
+        [
+          name,
+          email,
+          phone || null,
+          hashedPassword,
+          status ? status.toLowerCase() : "inactive",
+        ]
+      );
+
+      const [newUser] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user WHERE id = ?",
+        [result.insertId]
+      );
+
+      const formattedUser = {
+        ...newUser[0],
+        created_at: newUser[0].created_at
+          ? new Date(newUser[0].created_at).toISOString()
+          : null,
+        status: newUser[0].status ? newUser[0].status.toLowerCase() : "inactive",
+      };
+
+      res.status(201).json({
+        message: "User created successfully",
+        user: formattedUser,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Create user error:", error);
+    res.status(500).json({
+      message: "Failed to create user",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.put("/api/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, password, status } = req.body;
+
+    if (!name || !email) {
+      return res
+        .status(400)
+        .json({ message: "Name and email are required" });
+    }
+    if (status && !["active", "inactive"].includes(status.toLowerCase())) {
+      return res
+        .status(400)
+        .json({ message: "Status must be 'active' or 'inactive'" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM user WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const [emailConflict] = await connection.query(
+        "SELECT id FROM user WHERE email = ? AND id != ?",
+        [email, id]
+      );
+
+      if (emailConflict.length > 0) {
+        return res
+          .status(409)
+          .json({ message: "Email already in use by another user" });
+      }
+
+      let hashedPassword = undefined;
+      if (password && password.length >= 8) {
+        hashedPassword = await bcrypt.hash(password, 10);
+      } else if (password) {
+        return res
+          .status(400)
+          .json({ message: "Password must be at least 8 characters" });
+      }
+
+      await connection.query(
+        `UPDATE user SET 
+          name = ?,
+          email = ?,
+          phone = ?,
+          ${password ? "password = ?," : ""}
+          status = ?
+        WHERE id = ?`,
+        [
+          name,
+          email,
+          phone || null,
+          ...(password ? [hashedPassword] : []),
+          status ? status.toLowerCase() : "inactive",
+          id,
+        ]
+      );
+
+      const [updatedUser] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user WHERE id = ?",
+        [id]
+      );
+
+      const formattedUser = {
+        ...updatedUser[0],
+        created_at: updatedUser[0].created_at
+          ? new Date(updatedUser[0].created_at).toISOString()
+          : null,
+        status: updatedUser[0].status
+          ? updatedUser[0].status.toLowerCase()
+          : "inactive",
+      };
+
+      res.status(200).json({
+        message: "User updated successfully",
+        user: formattedUser,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({
+      message: "Failed to update user",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.delete("/api/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM user WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await connection.query("DELETE FROM user WHERE id = ?", [id]);
+
+      res.status(200).json({ message: "User deleted successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete user error:", error);
+    res.status(500).json({
+      message: "Failed to delete user",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.patch("/api/users/:id/status", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !["active", "inactive"].includes(status.toLowerCase())) {
+      return res
+        .status(400)
+        .json({ message: "Status must be 'active' or 'inactive'" });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id, status FROM user WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await connection.query("UPDATE user SET status = ? WHERE id = ?", [
+        status.toLowerCase(),
+        id,
+      ]);
+
+      const [updatedUser] = await connection.query(
+        "SELECT id, name, email, phone, status, created_at FROM user WHERE id = ?",
+        [id]
+      );
+
+      const formattedUser = {
+        ...updatedUser[0],
+        created_at: updatedUser[0].created_at
+          ? new Date(updatedUser[0].created_at).toISOString()
+          : null,
+        status: updatedUser[0].status
+          ? updatedUser[0].status.toLowerCase()
+          : "inactive",
+      };
+
+      res.status(200).json({
+        message: "User status updated successfully",
+        user: formattedUser,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update user status error:", error);
+    res.status(500).json({
+      message: "Failed to update user status",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all contact form submissions (Admin only)
+app.get("/api/contact", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us ORDER BY created_at DESC"
+      );
+
+      const formattedContacts = contacts.map((contact) => ({
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Contact forms retrieved successfully",
+        contacts: formattedContacts,
+        count: contacts.length,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get contact forms error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact forms",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get a single contact form submission by ID (Admin only)
+app.get("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us WHERE id = ?",
+        [id]
+      );
+
+      if (contacts.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      const contact = contacts[0];
+      const formattedContact = {
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      };
+
+      res.status(200).json({
+        message: "Contact form retrieved successfully",
+        contact: formattedContact,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get contact form error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Delete a contact form submission (Admin only)
+app.delete("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM contact_us WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      await connection.query("DELETE FROM contact_us WHERE id = ?", [id]);
+
+      res.status(200).json({
+        message: "Contact form deleted successfully",
+        deletedId: id,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete contact form error:", error);
+    res.status(500).json({
+      message: "Failed to delete contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all active coupons
+app.get("/api/coupons", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [coupons] = await connection.query(
+        "SELECT code, discount_value AS discount, discount_type AS type FROM coupons WHERE is_active = TRUE"
+      );
+
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [coupons] = await connection.query(
+        "SELECT id, code, discount_type AS type, discount_value AS discount, is_active, created_at FROM coupons"
+      );
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Create a new coupon (admin)
+app.post("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  const { code, discount_type, discount_value, is_active } = req.body;
+
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
+  }
+
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Check if coupon code already exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE code = ?", [code]);
+      if (existing.length > 0) {
+        return res.status(400).json({ message: "Coupon code already exists" });
+      }
+
+      await connection.query(
+        "INSERT INTO coupons (code, discount_type, discount_value, is_active, created_at) VALUES (?, ?, ?, ?, NOW())",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0]
+      );
+
+      res.status(201).json({ message: "Coupon created successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Create coupon error:", error);
+    res.status(500).json({
+      message: "Failed to create coupon",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Update a coupon (admin)
+app.put("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { code, discount_type, discount_value, is_active } = req.body;
+
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
+  }
+
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+
+      // Check if new code is unique (if changed)
+      const [codeCheck] = await connection.query(
+        "SELECT id FROM coupons WHERE code = ? AND id != ?",
+        [code, id]
+      );
+      if (codeCheck.length > 0) {
+        return res.status(400).json({ message: "Coupon code already exists" });
+      }
+
+      await connection.query(
+        "UPDATE coupons SET code = ?, discount_type = ?, discount_value = ?, is_active = ? WHERE id = ?",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0, id]
+      );
+
+      res.status(200).json({ message: "Coupon updated successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Update coupon error:", error);
+    res.status(500).json({
+      message: "Failed to update coupon",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Delete a coupon (admin)
+app.delete("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+
+      await connection.query("DELETE FROM coupons WHERE id = ?", [id]);
+      res.status(200).json({ message: "Coupon deleted successfully" });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete coupon error:", error);
+    res.status(500).json({
+      message: "Failed to delete coupon",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Configure multer for file uploads
+const fileUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadPath = path.join(__dirname, "public/uploads");
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only JPEG, PNG, WEBP, and SVG are allowed."));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// File upload endpoint
+app.post("/api/upload", fileUpload.single("file"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const fileData = {
+      filename: req.file.filename,
+      path: `/uploads/${req.file.filename}`,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    };
+
+    res.status(200).json({
+      message: "File uploaded successfully",
+      file: fileData,
+    });
+  } catch (error) {
+    console.error("File upload error:", error);
+    res.status(500).json({
+      message: "Failed to upload file",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;

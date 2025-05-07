@@ -251,13 +251,7 @@ export function AuthDialog({
                   </form>
                 </Form>
               </CardContent>
-              <CardFooter className="flex flex-col space-y-2">
-                <div className="text-sm text-center">
-                  <span onClick={() => setActiveTab("forgotPassword")} className="cursor-pointer text-primary hover:underline">
-                    Forgot password?
-                  </span>
-                </div>
-              </CardFooter>
+              
             </Card>
           </TabsContent>
 
@@ -388,35 +382,7 @@ export function AuthDialog({
             </Card>
           </TabsContent>
 
-          <TabsContent value="forgotPassword">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Reset your password</CardTitle>
-                <CardDescription>
-                  We'll send you a link to reset your password
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <FormLabel>Email</FormLabel>
-                    <Input placeholder="your@email.com" />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Send Reset Link
-                  </Button>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full"
-                  onClick={() => setActiveTab("login")}
-                >
-                  Back to login
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
+         
         </Tabs>
       </DialogContent>
     </Dialog>

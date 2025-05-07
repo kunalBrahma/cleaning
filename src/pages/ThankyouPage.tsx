@@ -88,7 +88,7 @@ const ThankYouPage = () => {
     return (
       <div className="min-h-screen mt-[130px] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">No order information found</h2>
+          <h2 className="text-2xl font-bold mb-4">No booking information found</h2>
           <p className="mb-6">Please complete checkout to see your order details.</p>
           <Link
             to="/checkout"
@@ -135,15 +135,15 @@ const ThankYouPage = () => {
               showAnimation ? "opacity-100 transform-none" : "opacity-0 -translate-y-4"
             }`}
           >
-            Thank You for Your Order!
+            Thank You for Your Booking!
           </h1>
           <p
             className={`text-gray-600 mb-8 max-w-xl mx-auto transition-all duration-700 delay-100 ${
               showAnimation ? "opacity-100 transform-none" : "opacity-0 -translate-y-4"
             }`}
           >
-            Your order has been successfully placed. We've sent a confirmation email to{" "}
-            <span className="font-medium">{orderSummary.email}</span> with your order details.
+            Your booking has been successfully placed.
+          
           </p>
         </div>
 
@@ -157,21 +157,21 @@ const ThankYouPage = () => {
           <div className="col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order Information</CardTitle>
+                <CardTitle>Booking Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Order Number</h3>
+                    <h3 className="text-sm font-medium text-gray-500">Booking Number</h3>
                     <p className="text-lg font-semibold">{orderSummary.orderNumber}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Order Date</h3>
+                    <h3 className="text-sm font-medium text-gray-500">Booking Date</h3>
                     <p>{formatDate(orderSummary.orderDate)}</p>
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Shipping Address</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Booking Address</h3>
                   <div className="flex items-start">
                     <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                     <p className="text-gray-800">{formatAddress(orderSummary.shippingAddress)}</p>
@@ -193,20 +193,18 @@ const ThankYouPage = () => {
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <h3 className="font-medium mb-2">Order Status</h3>
+                  <h3 className="font-medium mb-2">Booking Status</h3>
                   <div className="relative pt-1">
                     <div className="flex mb-3 items-center justify-between">
                       <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-green-200 text-green-800">
-                        Order Confirmed
+                        Booking Confirmed
                       </div>
                       <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-gray-200 text-gray-800">
                         Processing
                       </div>
+                      
                       <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-gray-200 text-gray-800">
-                        Shipped
-                      </div>
-                      <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-gray-200 text-gray-800">
-                        Delivered
+                        Completed
                       </div>
                     </div>
                     <div className="overflow-hidden h-2 mb-4 text-xs flex bg-gray-200 rounded">
@@ -218,7 +216,7 @@ const ThankYouPage = () => {
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-600">
-                        We're preparing your order. You'll receive an update when it ships.
+                        We're preparing your booking.
                       </span>
                     </div>
                   </div>
@@ -229,7 +227,7 @@ const ThankYouPage = () => {
             {/* Order Items */}
             <Card>
               <CardHeader>
-                <CardTitle>Order Items (Order #{orderSummary.orderNumber})</CardTitle>
+                <CardTitle>Booking Items (Booking #{orderSummary.orderNumber})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -258,7 +256,7 @@ const ThankYouPage = () => {
           <div className="col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+                <CardTitle>Booking Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
