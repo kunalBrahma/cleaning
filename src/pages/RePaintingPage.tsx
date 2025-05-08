@@ -2,13 +2,13 @@ import CTASection from "@/components/sections/CTASection"
 import RePainting from "@/components/sections/RePainting"
 
 
-const PaintingServicePage = () => {
+const RePaintingPage = () => {
   return (
     <div className="mt-[130px]">
-      <RePainting/>
-      <CTASection/>
+        <RePainting/>
+        <CTASection/>
     </div>
   )
 }
 
-export default PaintingServicePage
+export default RePaintingPage

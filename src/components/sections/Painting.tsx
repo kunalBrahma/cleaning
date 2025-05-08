@@ -184,6 +184,7 @@ const Painting: React.FC = () => {
               />
             ))}
           </div>
+          
 
           {/* Painting Process */}
           <ProcessSteps

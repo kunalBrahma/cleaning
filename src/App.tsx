@@ -35,6 +35,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext"; 
 import { ToastContainer } from "react-toastify"; 
 import "react-toastify/dist/ReactToastify.css"; 
+import RePaintingPage from "./pages/RePaintingPage";
 
 
 function HomePage() {
@@ -111,6 +112,10 @@ function App() {
                 path="/cleaning/empty-home"
                 element={<EmptyHomeCleaningPage />}
               />
+              <Route
+                path="/painting/re-painting"
+                element={<RePaintingPage />}
+              />
               <Route path="/painting" element={<PaintingServicePage />} />
               <Route path="/pest-control" element={<PestControlPage />} />
               <Route path="/repairs" element={<HomeRepair />} />
@@ -122,6 +127,7 @@ function App() {
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/thank-you" element={<ThankyouPage />} />
+              
               <Route
                 path="/dashboard"
                 element={
