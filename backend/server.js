@@ -30,6 +30,8 @@ app.use(
       "http://127.0.0.1:5173",
       "http://127.0.0.1:5174",
       "http://127.0.0.1:5175",
+      "https://cityhomeservice.in",
+      "https://admin.cityhomeservice.in",
     ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
