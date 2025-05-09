@@ -6,12 +6,11 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { config } from "dotenv";
 import morgan from "morgan";
+import fetch from "node-fetch";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
-import crypto from "crypto";
-
+import { fileURLToPath } from 'url';
 config();
 
 const app = express();
@@ -21,22 +20,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
-app.use(morgan("combined")); // Detailed logging for production
+app.use(morgan("dev"));
 app.use(
   cors({
     origin: [
-      "https://cityhomeservice.in",
-      "https://admin.cityhomeservice.in", // Ensured admin subdomain is included
-      ...(process.env.NODE_ENV === "development"
-        ? [
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5174",
-            "http://127.0.0.1:5175",
-          ]
-        : []),
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
+      "http://127.0.0.1:5175",
+        "https://cityhomeservice.in",
+        "https://admin.cityhomeservice.in",
     ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
@@ -44,9 +39,6 @@ app.use(
   })
 );
 app.use(express.json());
-
-// Serve static files (uploads directory)
-app.use("/uploads", express.static(path.join(__dirname, "public", "Uploads")));
 
 // Rate limiting
 const authLimiter = rateLimit({
@@ -64,9 +56,9 @@ const contactLimiter = rateLimit({
 
 // MySQL connection pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || "127.0.0.1",
-  user: process.env.DB_USER || "kunal",
-  password: process.env.DB_PASSWORD || "Tansegan@123",
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "tansegan",
   database: process.env.DB_NAME || "cleaning",
   waitForConnections: true,
   connectionLimit: 10,
@@ -75,10 +67,11 @@ const pool = mysql.createPool({
 
 // JWT secret
 const JWT_SECRET =
-  process.env.JWT_SECRET || crypto.randomBytes(64).toString("hex");
+  process.env.JWT_SECRET ||
+  "0e02fa4596bb2cfe82c864dfaf2ef5c863659b84dd7e1c985d34f8f54a8e6435783c958f858cabe99cabaf45ce3b56b50fe7afab1d3268381da0ddd12a402a9c";
 
 // Configure multer for image uploads
-const uploadsDir = path.join(__dirname, "public", "Uploads");
+const uploadsDir = path.join(__dirname, 'public', 'uploads'); 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -88,8 +81,8 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
@@ -102,7 +95,7 @@ const upload = multer({
     if (extname && mimetype) {
       return cb(null, true);
     }
-    cb(new Error("Only images (jpeg, jpg, png, gif) are allowed"));
+    cb(new Error('Only images (jpeg, jpg, png, gif) are allowed'));
   },
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
@@ -176,86 +169,86 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
-// Image upload endpoint (admin-only, accessible from admin.cityhomeservice.in)
-app.post("/api/upload", authenticateAdmin, upload.single("file"), async (req, res) => {
+// Image upload endpoint (admin-only)
+
+// For /api/upload
+app.post('/api/upload', authenticateAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const { filename } = req.file;
     const filePath = `/uploads/${filename}`;
-    const baseUrl =
-      process.env.NODE_ENV === "production"
-        ? "https://cityhomeservice.in" // Images served from main domain
-        : `http://${req.get("host")}`;
+    // Use the backend's host and port
+    const host = process.env.NODE_ENV === 'production' ? req.get('host') : 'localhost:5000';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     res.status(200).json({
-      message: "File uploaded successfully",
+      message: 'File uploaded successfully',
       file: {
         filename,
         path: filePath,
-        url: `${baseUrl}${filePath}`,
+        url: `${protocol}://${host}${filePath}`,
       },
     });
   } catch (error) {
-    console.error("File upload error:", error);
+    console.error('File upload error:', error);
     res.status(500).json({
-      message: "Failed to upload file",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      message: 'Failed to upload file',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });
 
-// Secondary image upload endpoint (admin-only, accessible from admin.cityhomeservice.in)
-app.post("/api/admin/images", authenticateAdmin, upload.single("image"), async (req, res) => {
+// For /api/admin/images
+app.post('/api/admin/images', authenticateAdmin, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "No image uploaded" });
+      return res.status(400).json({ message: 'No image uploaded' });
     }
 
     const { filename } = req.file;
     const filePath = `/uploads/${filename}`;
-    const baseUrl =
-      process.env.NODE_ENV === "production"
-        ? "https://cityhomeservice.in" // Images served from main domain
-        : `http://${req.get("host")}`;
+    // Use the backend's host and port
+    const host = process.env.NODE_ENV === 'production' ? req.get('host') : 'localhost:5000';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     res.status(201).json({
-      message: "Image uploaded successfully",
+      message: 'Image uploaded successfully',
       image: {
         filename,
         path: filePath,
-        url: `${baseUrl}${filePath}`,
+        url: `${protocol}://${host}${filePath}`,
       },
     });
   } catch (error) {
-    console.error("Image upload error:", error);
+    console.error('Image upload error:', error);
     res.status(500).json({
-      message: "Failed to upload image",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      message: 'Failed to upload image',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });
 
-// Global error handler for multer and other errors
 app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
+  console.error('Unhandled error:', err);
 
   if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({ message: "File size exceeds 5MB limit" });
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File size exceeds 5MB limit' });
     }
-    return res.status(400).json({ message: "File upload error" });
+    return res.status(400).json({ message: 'File upload error' });
   }
 
-  if (err.message === "Only images (jpeg, jpg, png, gif) are allowed") {
+  if (err.message === 'Only images (jpeg, jpg, png, gif) are allowed') {
     return res.status(400).json({ message: err.message });
   }
 
   res.status(500).json({
-    message: "Internal server error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
   });
 });
+
 
 // Auth endpoints
 app.post("/auth/signup", async (req, res) => {
@@ -329,7 +322,7 @@ app.post("/auth/login", async (req, res) => {
     const connection = await pool.getConnection();
     try {
       const [users] = await connection.query(
-        "SELECT * FROM.stationery WHERE email = ?",
+        "SELECT * FROM profile WHERE email = ?",
         [email]
       );
 
@@ -395,6 +388,66 @@ app.get("/auth/me", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/api/user/bookings", authenticateToken, async (req, res) => {
+  try {
+    const profileId = req.user ? req.user.id : null;
+
+    if (!profileId) {
+      return res
+        .status(401)
+        .json({ message: "Authentication required to view bookings" });
+    }
+
+    const [orders] = await pool.query(
+      `
+      SELECT 
+        o.order_id,
+        o.order_number,
+        o.first_name,
+        o.last_name,
+        o.guest_email,
+        o.guest_phone,
+        o.address_line1,
+        o.address_line2,
+        o.city,
+        o.state,
+        o.zip_code,
+        o.country,
+        o.payment_method,
+        o.subtotal,
+        o.convenience_fee,
+        o.discount,
+        o.total,
+        o.status,
+        o.created_at,
+        o.updated_at,
+        GROUP_CONCAT(
+          CONCAT(oi.product_name, ' (x', oi.quantity, ')')
+          SEPARATOR ', '
+        ) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.order_id = oi.order_id
+      WHERE o.profile_id = ?
+      GROUP BY o.order_id
+      ORDER BY o.created_at DESC
+      `,
+      [profileId]
+    );
+
+    res.status(200).json({
+      message: "Bookings retrieved successfully",
+      bookings: orders,
+    });
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({
+      message: "Failed to fetch bookings",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+
 app.post("/auth/refresh", authenticateToken, async (req, res) => {
   try {
     const newToken = jwt.sign({ userId: req.user.id }, JWT_SECRET, {
@@ -459,7 +512,9 @@ app.post("/auth/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log("Login attempt for email:", email);
     if (!email || !password) {
+      console.log("Missing email or password");
       return res
         .status(400)
         .json({ message: "Email and password are required" });
@@ -467,36 +522,54 @@ app.post("/auth/admin/login", async (req, res) => {
 
     const connection = await pool.getConnection();
     try {
+      console.log("Querying user table for email:", email);
       const [users] = await connection.query(
         "SELECT * FROM user WHERE email = ?",
         [email]
       );
 
+      console.log("Query result:", users);
       if (users.length === 0) {
+        console.log("No user found for email:", email);
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       const user = users[0];
       const userStatus = user.status ? user.status.toLowerCase() : "inactive";
 
+      console.log("User found:", {
+        id: user.id,
+        email: user.email,
+        status: userStatus,
+      });
+
       if (userStatus !== "active") {
+        console.log("User is not active:", { id: user.id, status: userStatus });
         return res.status(403).json({
           message: "Admin account not yet activated. Please contact super admin.",
         });
       }
 
+      console.log("Verifying password for user:", email);
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
+        console.log("Invalid password for user:", email);
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ userId: user.id, isAdmin: true }, JWT_SECRET, {
-        expiresIn: "7d",
-      });
+      console.log("Generating token for user:", email);
+      const token = jwt.sign(
+        { userId: user.id, isAdmin: true },
+        JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
 
       const { password: _, ...userWithoutPassword } = user;
 
+      console.log("Login successful for user:", email);
       return res.status(200).json({
         message: "Admin login successful",
         user: { ...userWithoutPassword, status: userStatus },
@@ -593,11 +666,6 @@ app.get("/api/services-by-category", async (req, res) => {
     try {
       const [services] = await connection.query("SELECT * FROM services");
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       const servicesByCategory = {};
       services.forEach((service) => {
         if (!servicesByCategory[service.category]) {
@@ -605,7 +673,9 @@ app.get("/api/services-by-category", async (req, res) => {
         }
         servicesByCategory[service.category].push({
           ...service,
-          image: service.image ? `${baseUrl}${service.image}` : null,
+          image: service.image
+            ? `http://localhost:5173${service.image}`
+            : null,
         });
       });
 
@@ -631,17 +701,7 @@ app.get("/api/services", async (req, res) => {
         "SELECT * FROM main WHERE status = 'Active'"
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
-      const formattedServices = services.map((service) => ({
-        ...service,
-        icon: service.icon ? `${baseUrl}${service.icon}` : null,
-      }));
-
-      res.status(200).json(formattedServices);
+      res.status(200).json(services);
     } finally {
       connection.release();
     }
@@ -830,7 +890,7 @@ app.post("/api/checkout", async (req, res) => {
 });
 
 // Get bookings/orders for authenticated user
-app.get("/api/user/bookings", authenticateToken, async (req, res) => {
+app.get("/api/user/bookings",  async (req, res) => {
   try {
     const profileId = req.user ? req.user.id : null;
 
@@ -958,23 +1018,28 @@ app.get("/api/orders", async (req, res) => {
 app.post("/api/contact", contactLimiter, async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
+    console.log("Received contact form data:", { name, email, subject, message });
 
     if (!name || !email || !subject) {
+      console.log("Validation failed: Missing required fields", req.body);
       return res
         .status(400)
         .json({ message: "Name, email, and subject are required" });
     }
     if (name.length < 2) {
+      console.log("Validation failed: Name too short", { name });
       return res
         .status(400)
         .json({ message: "Name must be at least 2 characters" });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      console.log("Validation failed: Invalid email", { email });
       return res
         .status(400)
         .json({ message: "Please enter a valid email address" });
     }
     if (subject.length < 2) {
+      console.log("Validation failed: Subject too short", { subject });
       return res
         .status(400)
         .json({ message: "Subject must be at least 2 characters" });
@@ -986,6 +1051,7 @@ app.post("/api/contact", contactLimiter, async (req, res) => {
         "INSERT INTO contact_us (name, email, subject, message) VALUES (?, ?, ?, ?)",
         [name, email, subject, message || ""]
       );
+      console.log("Contact form saved:", { contactId: result.insertId });
 
       res.status(201).json({
         message: "Contact form submitted successfully",
@@ -1016,8 +1082,8 @@ async function sendWhatsAppNotification(phoneNumber, message) {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        appkey: process.env.WHATSAPP_APP_KEY || "991b16da-8631-4b78-aa70-24c6b4eb8d51",
-        authkey: process.env.WHATSAPP_AUTH_KEY || "oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP",
+        appkey: "991b16da-8631-4b78-aa70-24c6b4eb8d51",
+        authkey: "oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP",
         to: formattedPhoneNumber,
         message: message,
       }),
@@ -1045,7 +1111,7 @@ async function sendWhatsAppNotification(phoneNumber, message) {
 }
 
 // Create a new service
-app.post("/api/main", authenticateAdmin, async (req, res) => {
+app.post("/api/main", async (req, res) => {
   try {
     const { category, subCategory, icon, path } = req.body;
 
@@ -1065,17 +1131,9 @@ app.post("/api/main", authenticateAdmin, async (req, res) => {
         [result.insertId]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(201).json({
         message: "Service created successfully",
-        service: {
-          ...newService[0],
-          icon: newService[0].icon ? `${baseUrl}${newService[0].icon}` : null,
-        },
+        service: newService[0],
       });
     } finally {
       connection.release();
@@ -1090,25 +1148,15 @@ app.post("/api/main", authenticateAdmin, async (req, res) => {
 });
 
 // Get all services (including inactive)
-app.get("/api/main/all", authenticateAdmin, async (req, res) => {
+app.get("/api/main/all", async (req, res) => {
   try {
     const connection = await pool.getConnection();
     try {
       const [services] = await connection.query(
-        "SELECT * FROM main ORDER BY createdAt DESC"
+        "SELECT * FROM main WHERE status = 'Active' ORDER BY createdAt DESC"
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
-      const formattedServices = services.map((service) => ({
-        ...service,
-        icon: service.icon ? `${baseUrl}${service.icon}` : null,
-      }));
-
-      res.status(200).json(formattedServices);
+      res.status(200).json(services);
     } finally {
       connection.release();
     }
@@ -1122,7 +1170,7 @@ app.get("/api/main/all", authenticateAdmin, async (req, res) => {
 });
 
 // Get service by ID
-app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.get("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1137,15 +1185,7 @@ app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
         return res.status(404).json({ message: "Service not found" });
       }
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
-      res.status(200).json({
-        ...services[0],
-        icon: services[0].icon ? `${baseUrl}${services[0].icon}` : null,
-      });
+      res.status(200).json(services[0]);
     } finally {
       connection.release();
     }
@@ -1159,7 +1199,7 @@ app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
 });
 
 // Update service
-app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.put("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { category, subCategory, icon, path, status } = req.body;
@@ -1189,17 +1229,9 @@ app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
         [id]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(200).json({
         message: "Service updated successfully",
-        service: {
-          ...updatedService[0],
-          icon: updatedService[0].icon ? `${baseUrl}${updatedService[0].icon}` : null,
-        },
+        service: updatedService[0],
       });
     } finally {
       connection.release();
@@ -1214,7 +1246,7 @@ app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
 });
 
 // "Delete" service (update status to inActive)
-app.delete("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.delete("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1325,7 +1357,7 @@ app.put("/api/orders/:id/status", authenticateAdmin, async (req, res) => {
           : null,
       };
 
-      const message = `Dear ${order.first_name} ${order.last_name}, your order (${order.order_number}) status has been updated to ${status.trim()}.`;
+      const message = `Dear ${order.first_name} ${order.last_name}, your order (${order.order_number}) status has been ${status.trim()}.`;
       await sendWhatsAppNotification(order.guest_phone, message);
 
       res.status(200).json({
@@ -1347,7 +1379,7 @@ app.put("/api/orders/:id/status", authenticateAdmin, async (req, res) => {
 // OFFERINGS CRUD OPERATIONS
 
 // Create a new offering (admin-only)
-app.post("/api/offerings", authenticateAdmin, async (req, res) => {
+app.post("/api/offerings",  async (req, res) => {
   try {
     const {
       service_code,
@@ -1411,20 +1443,12 @@ app.post("/api/offerings", authenticateAdmin, async (req, res) => {
         [result.insertId]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(201).json({
         message: "Offering created successfully",
         offering: {
           ...newOffering[0],
           image: newOffering[0].image
-            ? `${baseUrl}${newOffering[0].image}`
-            : null,
-          icon: newOffering[0].icon
-            ? `${baseUrl}${newOffering[0].icon}`
+            ? `http://localhost:5173${newOffering[0].image}`
             : null,
         },
       });
@@ -1449,15 +1473,11 @@ app.get("/api/offerings", async (req, res) => {
         "SELECT * FROM services ORDER BY id DESC"
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
       }));
 
       res.status(200).json({
@@ -1492,20 +1512,12 @@ app.get("/api/offerings/:id", async (req, res) => {
         return res.status(404).json({ message: "Offering not found" });
       }
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(200).json({
         message: "Offering retrieved successfully",
         offering: {
           ...offerings[0],
           image: offerings[0].image
-            ? `${baseUrl}${offerings[0].image}`
-            : null,
-          icon: offerings[0].icon
-            ? `${baseUrl}${offerings[0].icon}`
+            ? `http://localhost:5173${offerings[0].image}`
             : null,
         },
       });
@@ -1537,20 +1549,12 @@ app.get("/api/offerings/code/:service_code", async (req, res) => {
         return res.status(404).json({ message: "Offering not found" });
       }
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(200).json({
         message: "Offering retrieved successfully",
         offering: {
           ...offerings[0],
           image: offerings[0].image
-            ? `${baseUrl}${offerings[0].image}`
-            : null,
-          icon: offerings[0].icon
-            ? `${baseUrl}${offerings[0].icon}`
+            ? `http://localhost:5173${offerings[0].image}`
             : null,
         },
       });
@@ -1567,7 +1571,7 @@ app.get("/api/offerings/code/:service_code", async (req, res) => {
 });
 
 // Update offering (admin-only)
-app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
+app.put("/api/offerings/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1667,20 +1671,12 @@ app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
         [id]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(200).json({
         message: "Offering updated successfully",
         offering: {
           ...updatedOffering[0],
           image: updatedOffering[0].image
-            ? `${baseUrl}${updatedOffering[0].image}`
-            : null,
-          icon: updatedOffering[0].icon
-            ? `${baseUrl}${updatedOffering[0].icon}`
+            ? `http://localhost:5173${updatedOffering[0].image}`
             : null,
         },
       });
@@ -1697,7 +1693,7 @@ app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
 });
 
 // Delete offering (admin-only)
-app.delete("/api/offerings/:id", authenticateAdmin, async (req, res) => {
+app.delete("/api/offerings/:id",  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1744,15 +1740,11 @@ app.get("/api/offerings/popular", async (req, res) => {
         "SELECT * FROM services WHERE popular = 1 ORDER BY id DESC"
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
       }));
 
       res.status(200).json({
@@ -1783,15 +1775,11 @@ app.get("/api/offerings/category/:category", async (req, res) => {
         [category]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        image: offering.image
+          ? `http://localhost:5173${offering.image}`
+          : null,
       }));
 
       res.status(200).json({
@@ -1909,7 +1897,7 @@ app.post("/api/profiles", authenticateAdmin, async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
       const [result] = await connection.query(
         "INSERT INTO profile (name, email, phone, password) VALUES (?, ?, ?, ?)",
-        [name, email, phone, hashedPassword]
+        [name, email, phone || null, hashedPassword]
       );
 
       const [newProfile] = await connection.query(
@@ -2000,7 +1988,7 @@ app.put("/api/profiles/:id", authenticateAdmin, async (req, res) => {
       );
 
       const [updatedProfile] = await connection.query(
-        "SELECT id, name, email, phone, created_at Distance profile WHERE id = ?",
+        "SELECT id, name, email, phone, created_at FROM profile WHERE id = ?",
         [id]
       );
 
@@ -2385,33 +2373,195 @@ app.patch("/api/users/:id/status", authenticateAdmin, async (req, res) => {
   }
 });
 
-// COUPONS CRUD OPERATIONS
-
-// Create a new coupon (admin-only)
-app.post("/api/coupons", authenticateAdmin, async (req, res) => {
+// Get all contact form submissions (Admin only)
+app.get("/api/contact", authenticateAdmin, async (req, res) => {
   try {
-    const { code, discount, expiry_date, is_active } = req.body;
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us ORDER BY created_at DESC"
+      );
 
-    if (!code || !discount) {
-      return res
-        .status(400)
-        .json({ message: "Code and discount are required" });
+      const formattedContacts = contacts.map((contact) => ({
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Contact forms retrieved successfully",
+        contacts: formattedContacts,
+        count: contacts.length,
+      });
+    } finally {
+      connection.release();
     }
+  } catch (error) {
+    console.error("Get contact forms error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact forms",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get a single contact form submission by ID (Admin only)
+app.get("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us WHERE id = ?",
+        [id]
+      );
+
+      if (contacts.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      const contact = contacts[0];
+      const formattedContact = {
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      };
+
+      res.status(200).json({
+        message: "Contact form retrieved successfully",
+        contact: formattedContact,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get contact form error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Delete a contact form submission (Admin only)
+app.delete("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
 
     const connection = await pool.getConnection();
     try {
       const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE code = ?",
-        [code]
+        "SELECT id FROM contact_us WHERE id = ?",
+        [id]
       );
 
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      await connection.query("DELETE FROM contact_us WHERE id = ?", [id]);
+
+      res.status(200).json({
+        message: "Contact form deleted successfully",
+        deletedId: id,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete contact form error:", error);
+    res.status(500).json({
+      message: "Failed to delete contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get all active coupons
+app.get("/api/coupons", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [coupons] = await connection.query(
+        "SELECT code, discount_value AS discount, discount_type AS type FROM coupons WHERE is_active = TRUE"
+      );
+
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [coupons] = await connection.query(
+        "SELECT id, code, discount_type AS type, discount_value AS discount, is_active, created_at FROM coupons"
+      );
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Create a new coupon (admin)
+app.post("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  const { code, discount_type, discount_value, is_active } = req.body;
+
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
+  }
+
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Check if coupon code already exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE code = ?", [code]);
       if (existing.length > 0) {
-        return res.status(409).json({ message: "Coupon code already exists" });
+        return res.status(400).json({ message: "Coupon code already exists" });
       }
 
       await connection.query(
-        `INSERT INTO coupons (code, discount, expiry_date, is_active) VALUES (?, ?, ?, ?)`,
-        [code, discount, expiry_date || null, is_active ? 1 : 0]
+        "INSERT INTO coupons (code, discount_type, discount_value, is_active, created_at) VALUES (?, ?, ?, ?, NOW())",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0]
       );
 
       res.status(201).json({ message: "Coupon created successfully" });
@@ -2427,114 +2577,47 @@ app.post("/api/coupons", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get all coupons
-app.get("/api/coupons", async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query("SELECT * FROM coupons");
+// Update a coupon (admin)
+app.put("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { code, discount_type, discount_value, is_active } = req.body;
 
-      res.status(200).json({
-        message: "Coupons retrieved successfully",
-        coupons,
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Get all coupons error:", error);
-    res.status(500).json({
-      message: "Failed to fetch coupons",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
   }
-});
 
-// Get coupon by ID
-app.get("/api/coupons/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query(
-        "SELECT * FROM coupons WHERE id = ?",
-        [id]
-      );
-
-      if (coupons.length === 0) {
-        return res.status(404).json({ message: "Coupon not found" });
-      }
-
-      res.status(200).json({
-        message: "Coupon retrieved successfully",
-        coupon: coupons[0],
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Get coupon error:", error);
-    res.status(500).json({
-      message: "Failed to fetch coupon",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
   }
-});
 
-// Update coupon (admin-only)
-app.put("/api/coupons/:id", authenticateAdmin, async (req, res) => {
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
   try {
-    const { id } = req.params;
-    const { code, discount, expiry_date, is_active } = req.body;
-
-    if (!code || !discount) {
-      return res
-        .status(400)
-        .json({ message: "Code and discount are required" });
-    }
-
     const connection = await pool.getConnection();
     try {
-      const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE id = ?",
-        [id]
-      );
-
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
       if (existing.length === 0) {
         return res.status(404).json({ message: "Coupon not found" });
       }
 
-      const [codeConflict] = await connection.query(
+      // Check if new code is unique (if changed)
+      const [codeCheck] = await connection.query(
         "SELECT id FROM coupons WHERE code = ? AND id != ?",
         [code, id]
       );
-
-      if (codeConflict.length > 0) {
-        return res
-          .status(409)
-          .json({ message: "Coupon code already in use by another coupon" });
+      if (codeCheck.length > 0) {
+        return res.status(400).json({ message: "Coupon code already exists" });
       }
 
       await connection.query(
-        `UPDATE coupons SET 
-          code = ?,
-          discount = ?,
-          expiry_date = ?,
-          is_active = ?
-        WHERE id = ?`,
-        [code, discount, expiry_date || null, is_active ? 1 : 0, id]
+        "UPDATE coupons SET code = ?, discount_type = ?, discount_value = ?, is_active = ? WHERE id = ?",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0, id]
       );
 
-      const [updatedCoupon] = await connection.query(
-        "SELECT * FROM coupons WHERE id = ?",
-        [id]
-      );
-
-      res.status(200).json({
-        message: "Coupon updated successfully",
-        coupon: updatedCoupon[0],
-      });
+      res.status(200).json({ message: "Coupon updated successfully" });
     } finally {
       connection.release();
     }
@@ -2547,24 +2630,20 @@ app.put("/api/coupons/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Delete coupon (admin-only)
-app.delete("/api/coupons/:id", authenticateAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
+// Delete a coupon (admin)
+app.delete("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
 
+  try {
     const connection = await pool.getConnection();
     try {
-      const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE id = ?",
-        [id]
-      );
-
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
       if (existing.length === 0) {
         return res.status(404).json({ message: "Coupon not found" });
       }
 
       await connection.query("DELETE FROM coupons WHERE id = ?", [id]);
-
       res.status(200).json({ message: "Coupon deleted successfully" });
     } finally {
       connection.release();
@@ -2578,68 +2657,58 @@ app.delete("/api/coupons/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/coupons/code/:code", async (req, res) => {
-  try {
-    const { code } = req.params;
-
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query(
-        `SELECT * FROM coupons 
-         WHERE code = ? 
-         AND is_active = TRUE 
-         AND (valid_from IS NULL OR valid_from <= NOW())
-         AND (valid_until IS NULL OR valid_until >= NOW())
-         AND (max_uses IS NULL OR current_uses < max_uses)`,
-        [code]
-      );
-
-      if (coupons.length === 0) {
-        return res.status(404).json({ message: "Valid coupon not found" });
-      }
-
-      const formattedCoupon = {
-        ...coupons[0],
-        valid_from: coupons[0].valid_from
-          ? new Date(coupons[0].valid_from).toISOString()
-          : null,
-        valid_until: coupons[0].valid_until
-          ? new Date(coupons[0].valid_until).toISOString()
-          : null,
-        created_at: coupons[0].created_at
-          ? new Date(coupons[0].created_at).toISOString()
-          : null,
-      };
-
-      res.status(200).json({
-        message: "Coupon retrieved successfully",
-        coupon: formattedCoupon,
-      });
-    } finally {
-      connection.release();
+// Configure multer for file uploads
+const fileUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadPath = path.join(__dirname, "public/uploads");
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only JPEG, PNG, WEBP, and SVG are allowed."));
     }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// File upload endpoint
+app.post("/api/upload", fileUpload.single("file"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const fileData = {
+      filename: req.file.filename,
+      path: `/uploads/${req.file.filename}`,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    };
+
+    res.status(200).json({
+      message: "File uploaded successfully",
+      file: fileData,
+    });
   } catch (error) {
-    console.error("Get coupon by code error:", error);
+    console.error("File upload error:", error);
     res.status(500).json({
-      message: "Failed to fetch coupon",
+      message: "Failed to upload file",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
 
-// Start the server
+// Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// Handle uncaught exceptions and rejections
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
-  process.exit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`API server running on port ${PORT}`);
 });
