@@ -87,7 +87,7 @@ const ContactSection: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      await axios.post('http://localhost:5000/api/contact', {
+      await axios.post('api/api/contact', {
         name: data.contactName,
         email: data.contactEmail,
         subject: data.contactSubject,

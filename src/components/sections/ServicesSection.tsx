@@ -31,7 +31,7 @@ const ServicesSection: React.FC = () => {
   // Fetch services from API
   const fetchServices = async (): Promise<Service[]> => {
     try {
-      const response = await axios.get('http://localhost:5000/api/services');
+      const response = await axios.get('api/api/services');
       return response.data;
     } catch (error) {
       console.error('Error fetching services:', error);

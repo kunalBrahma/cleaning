@@ -95,7 +95,7 @@ const Painting: React.FC = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/services");
+        const response = await axios.get("api/api/services");
         const services: Service[] = response.data;
         // Filter for Cleaning category and Active status
         const filteredServices = services.filter(
