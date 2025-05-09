@@ -42,7 +42,7 @@ const DashboardPage: React.FC = () => {
         }
 
         const response = await axios.get<{ bookings: Booking[] }>(
-          "api/api/user/bookings",
+          "/api/api/user/bookings",
           {
             headers: {
               Authorization: `Bearer ${token}`,

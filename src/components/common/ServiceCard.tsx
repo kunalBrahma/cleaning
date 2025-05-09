@@ -1,4 +1,3 @@
-// src/components/common/ServiceCard.tsx
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -12,7 +11,7 @@ interface ServiceCardProps {
     id: number;
     category: string;
     subCategory: string;
-    icon: string;
+    icon: string; // Can be either Lucide icon name or image URL
     path: string;
     status: string;
     createdAt: string;
@@ -26,10 +25,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   index,
   textColor = 'text-white',
 }) => {
-  const IconComponent = LucideIcons[
-    service.icon as keyof typeof LucideIcons
-  ] as React.ElementType;
   const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Determine if the icon is a URL (starts with http) or Lucide icon name
+  const isImageIcon = service.icon?.startsWith('http');
+  
+  // For Lucide icons, safely get the component
+  const IconComponent = !isImageIcon 
+    ? (LucideIcons[service.icon as keyof typeof LucideIcons] as React.ElementType)
+    : null;
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -55,24 +59,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         duration: 0.3,
         ease: 'power2.out',
         paused: true,
-        onStart: () => {
-          gsap.to(cardRef.current, {
-           
-            duration: 0.3,
-          });
-        },
-        onReverseComplete: () => {
-          gsap.to(cardRef.current, {
-            
-            duration: 0.3,
-          });
-        },
       });
 
       cardRef.current?.addEventListener('mouseenter', () => hoverAnimation.play());
-      cardRef.current?.addEventListener('mouseleave', () =>
-        hoverAnimation.reverse()
-      );
+      cardRef.current?.addEventListener('mouseleave', () => hoverAnimation.reverse());
+      
+      return () => {
+        cardRef.current?.removeEventListener('mouseenter', () => hoverAnimation.play());
+        cardRef.current?.removeEventListener('mouseleave', () => hoverAnimation.reverse());
+      };
     }, cardRef);
 
     return () => ctx.revert();
@@ -85,12 +80,24 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         className="relative rounded-2xl overflow-hidden transition-all duration-300 group p-6 flex flex-col items-center text-center"
       >
         <div className="p-4 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl mb-4 transform transition-all duration-300 group-hover:rotate-[15deg]">
-          {IconComponent && <IconComponent size={32} className="text-white" />}
+          {isImageIcon ? (
+            // Render image icon
+            <img 
+              src={service.icon} 
+              alt={service.subCategory}
+              className="w-8 h-8 object-contain"
+              onError={(e) => {
+                // Fallback if image fails to load
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            // Render Lucide icon
+            IconComponent && <IconComponent size={32} className="text-white" />
+          )}
         </div>
 
-        <h3
-          className={`text-lg font-semibold ${textColor} mb-2 transition-colors duration-300`}
-        >
+        <h3 className={`text-lg font-semibold ${textColor} mb-2 transition-colors duration-300`}>
           {service.subCategory}
         </h3>
       </div>

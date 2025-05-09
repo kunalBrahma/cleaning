@@ -68,34 +68,33 @@ const Sofa = () => {
   useEffect(() => {
       const fetchServices = async () => {
         try {
-          const response = await fetch("api/api/services-by-category");
-          
+          const response = await fetch("/api/services-by-category"); // Fixed the endpoint
+
           if (!response.ok) {
+            const errorText = await response.text(); // Log the response text for debugging
+            console.error("API Error Response:", errorText);
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
-          
+
           const data = await response.json();
           console.log("API Response:", data); // Log the entire response
-          
-          // Check if we have the "Cleaning Services" category in the response
+
           if (data && data["Cleaning Services"]) {
-            // Filter for subCategory === "Bathroom" services
             const bathroomServices = data["Cleaning Services"].filter(
               (service: any) => service.subCategory === "Sofa Cleaning"
             );
-            
+
             console.log("Sofa Cleaning:", bathroomServices); // Log filtered services
-            
+
             if (bathroomServices.length === 0) {
-              setError("No bathroom services found");
+              setError("No sofa cleaning services found");
             }
-            
+
             const mappedServices = bathroomServices.map((service: any) => {
-              // Parse features, requirements, exclusions if they're strings
               let parsedFeatures = [];
               let parsedRequirements = [];
               let parsedExclusions = [];
-              
+
               try {
                 parsedFeatures = typeof service.features === 'string' 
                   ? JSON.parse(service.features) 
@@ -104,7 +103,7 @@ const Sofa = () => {
                 console.error("Error parsing features:", e);
                 parsedFeatures = [];
               }
-              
+
               try {
                 parsedRequirements = typeof service.requirements === 'string' 
                   ? JSON.parse(service.requirements) 
@@ -113,7 +112,7 @@ const Sofa = () => {
                 console.error("Error parsing requirements:", e);
                 parsedRequirements = [];
               }
-              
+
               try {
                 parsedExclusions = typeof service.exclusions === 'string' 
                   ? JSON.parse(service.exclusions) 
@@ -122,7 +121,7 @@ const Sofa = () => {
                 console.error("Error parsing exclusions:", e);
                 parsedExclusions = [];
               }
-              
+
               return {
                 id: service.service_code,
                 title: service.name,
@@ -151,7 +150,7 @@ const Sofa = () => {
                 whatsappMessage: service.whatsapp_message,
               };
             });
-            
+
             setServices(mappedServices);
           } else {
             setError("Invalid API response format or missing Cleaning Services category");

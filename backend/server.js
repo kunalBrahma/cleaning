@@ -321,15 +321,14 @@ app.post("/auth/login", async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
     const connection = await pool.getConnection();
     try {
+      // CORRECTED QUERY:
       const [users] = await connection.query(
-        "SELECT * FROM.stationery WHERE email = ?",
+        "SELECT * FROM profile WHERE email = ?",
         [email]
       );
 
@@ -359,6 +358,7 @@ app.post("/auth/login", async (req, res) => {
     }
   } catch (error) {
     console.error("Login error:", error);
+    if (error.sqlMessage) console.error("SQL Error:", error.sqlMessage);
     return res.status(500).json({
       message: "Server error",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,

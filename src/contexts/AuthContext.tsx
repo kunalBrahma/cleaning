@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Axios instance for API
 const api = axios.create({
-  baseURL: "https://cityhomeservice.in/api",
+  baseURL: "/api",
   withCredentials: false,
   headers: {
     "Content-Type": "application/json",
