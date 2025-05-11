@@ -131,6 +131,7 @@ const RePainting = () => {
               title: service.name,
               price: Number(service.price),
               image: service.image,
+              category : service.category,
               description: service.description,
               features: parsedFeatures.map((f: any) => ({
                 ...f,

@@ -1,11 +1,12 @@
 import CTASection from "@/components/sections/CTASection"
-import RePainting from "@/components/sections/RePainting"
+import Painting from "@/components/sections/Painting"
+
 
 
 const PaintingServicePage = () => {
   return (
     <div className="mt-[130px]">
-      <RePainting/>
+      <Painting/>
       <CTASection/>
     </div>
   )

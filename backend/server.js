@@ -184,7 +184,7 @@ app.post("/api/upload", authenticateAdmin, upload.single("file"), async (req, re
     }
 
     const { filename } = req.file;
-    const filePath = `/uploads/${filename}`;
+    const filePath = `/Uploads/${filename}`;
     const baseUrl =
       process.env.NODE_ENV === "production"
         ? "https://cityhomeservice.in" // Images served from main domain
@@ -214,7 +214,7 @@ app.post("/api/admin/images", authenticateAdmin, upload.single("image"), async (
     }
 
     const { filename } = req.file;
-    const filePath = `/uploads/${filename}`;
+    const filePath = `/Uploads/${filename}`;
     const baseUrl =
       process.env.NODE_ENV === "production"
         ? "https://cityhomeservice.in" // Images served from main domain
@@ -1003,6 +1003,121 @@ app.post("/api/contact", contactLimiter, async (req, res) => {
   }
 });
 
+// Get all contact form submissions (Admin only)
+app.get("/api/contact", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us ORDER BY created_at DESC"
+      );
+
+      const formattedContacts = contacts.map((contact) => ({
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      }));
+
+      res.status(200).json({
+        message: "Contact forms retrieved successfully",
+        contacts: formattedContacts,
+        count: contacts.length,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get contact forms error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact forms",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Get a single contact form submission by ID (Admin only)
+app.get("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [contacts] = await connection.query(
+        "SELECT * FROM contact_us WHERE id = ?",
+        [id]
+      );
+
+      if (contacts.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      const contact = contacts[0];
+      const formattedContact = {
+        ...contact,
+        created_at: contact.created_at
+          ? new Date(contact.created_at).toISOString()
+          : null,
+        updated_at: contact.updated_at
+          ? new Date(contact.updated_at).toISOString()
+          : null,
+      };
+
+      res.status(200).json({
+        message: "Contact form retrieved successfully",
+        contact: formattedContact,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Get contact form error:", error);
+    res.status(500).json({
+      message: "Failed to retrieve contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Delete a contact form submission (Admin only)
+app.delete("/api/contact/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    try {
+      const [existing] = await connection.query(
+        "SELECT id FROM contact_us WHERE id = ?",
+        [id]
+      );
+
+      if (existing.length === 0) {
+        return res.status(404).json({ message: "Contact form not found" });
+      }
+
+      await connection.query("DELETE FROM contact_us WHERE id = ?", [id]);
+
+      res.status(200).json({
+        message: "Contact form deleted successfully",
+        deletedId: id,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Delete contact form error:", error);
+    res.status(500).json({
+      message: "Failed to delete contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+
+
 async function sendWhatsAppNotification(phoneNumber, message) {
   try {
     let formattedPhoneNumber = phoneNumber.trim();
@@ -1044,8 +1159,8 @@ async function sendWhatsAppNotification(phoneNumber, message) {
   }
 }
 
-// Create a new service
-app.post("/api/main", authenticateAdmin, async (req, res) => {
+
+app.post("/api/main", async (req, res) => {
   try {
     const { category, subCategory, icon, path } = req.body;
 
@@ -1065,17 +1180,9 @@ app.post("/api/main", authenticateAdmin, async (req, res) => {
         [result.insertId]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(201).json({
         message: "Service created successfully",
-        service: {
-          ...newService[0],
-          icon: newService[0].icon ? `${baseUrl}${newService[0].icon}` : null,
-        },
+        service: newService[0],
       });
     } finally {
       connection.release();
@@ -1090,25 +1197,15 @@ app.post("/api/main", authenticateAdmin, async (req, res) => {
 });
 
 // Get all services (including inactive)
-app.get("/api/main/all", authenticateAdmin, async (req, res) => {
+app.get("/api/main/all", async (req, res) => {
   try {
     const connection = await pool.getConnection();
     try {
       const [services] = await connection.query(
-        "SELECT * FROM main ORDER BY createdAt DESC"
+        "SELECT * FROM main WHERE status = 'Active' ORDER BY createdAt DESC"
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
-      const formattedServices = services.map((service) => ({
-        ...service,
-        icon: service.icon ? `${baseUrl}${service.icon}` : null,
-      }));
-
-      res.status(200).json(formattedServices);
+      res.status(200).json(services);
     } finally {
       connection.release();
     }
@@ -1122,7 +1219,7 @@ app.get("/api/main/all", authenticateAdmin, async (req, res) => {
 });
 
 // Get service by ID
-app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.get("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1137,15 +1234,7 @@ app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
         return res.status(404).json({ message: "Service not found" });
       }
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
-      res.status(200).json({
-        ...services[0],
-        icon: services[0].icon ? `${baseUrl}${services[0].icon}` : null,
-      });
+      res.status(200).json(services[0]);
     } finally {
       connection.release();
     }
@@ -1159,7 +1248,7 @@ app.get("/api/main/:id", authenticateAdmin, async (req, res) => {
 });
 
 // Update service
-app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.put("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { category, subCategory, icon, path, status } = req.body;
@@ -1189,17 +1278,9 @@ app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
         [id]
       );
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? "https://cityhomeservice.in"
-          : `http://${req.get("host")}`;
-
       res.status(200).json({
         message: "Service updated successfully",
-        service: {
-          ...updatedService[0],
-          icon: updatedService[0].icon ? `${baseUrl}${updatedService[0].icon}` : null,
-        },
+        service: updatedService[0],
       });
     } finally {
       connection.release();
@@ -1214,7 +1295,7 @@ app.put("/api/main/:id", authenticateAdmin, async (req, res) => {
 });
 
 // "Delete" service (update status to inActive)
-app.delete("/api/main/:id", authenticateAdmin, async (req, res) => {
+app.delete("/api/main/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1457,7 +1538,7 @@ app.get("/api/offerings", async (req, res) => {
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
         image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        
       }));
 
       res.status(200).json({
@@ -1565,12 +1646,11 @@ app.get("/api/offerings/code/:service_code", async (req, res) => {
     });
   }
 });
-
 // Update offering (admin-only)
 app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const {
+    let {
       service_code,
       name,
       description,
@@ -1578,7 +1658,7 @@ app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
       price,
       category,
       subCategory,
-      image,
+      image,  // This might contain full URL
       features,
       requirements,
       exclusions,
@@ -1586,6 +1666,11 @@ app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
       popular,
       whatsapp_message,
     } = req.body;
+
+    // Fix: If image contains base URL, strip it before saving to database
+    if (image && image.includes('https://cityhomeservice.in')) {
+      image = image.replace('https://cityhomeservice.in', '');
+    }
 
     if (!service_code || !name) {
       return res
@@ -2387,31 +2472,82 @@ app.patch("/api/users/:id/status", authenticateAdmin, async (req, res) => {
 
 // COUPONS CRUD OPERATIONS
 
-// Create a new coupon (admin-only)
-app.post("/api/coupons", authenticateAdmin, async (req, res) => {
+// Get all active coupons
+app.get("/api/coupons", async (req, res) => {
   try {
-    const { code, discount, expiry_date, is_active } = req.body;
-
-    if (!code || !discount) {
-      return res
-        .status(400)
-        .json({ message: "Code and discount are required" });
-    }
-
     const connection = await pool.getConnection();
     try {
-      const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE code = ?",
-        [code]
+      const [coupons] = await connection.query(
+        "SELECT code, discount_value AS discount, discount_type AS type FROM coupons WHERE is_active = TRUE"
       );
 
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [coupons] = await connection.query(
+        "SELECT id, code, discount_type AS type, discount_value AS discount, is_active, created_at FROM coupons"
+      );
+      res.status(200).json({
+        message: "Coupons retrieved successfully",
+        coupons,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Fetch coupons error:", error);
+    res.status(500).json({
+      message: "Failed to fetch coupons",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Create a new coupon (admin)
+app.post("/api/admin/coupons", authenticateAdmin, async (req, res) => {
+  const { code, discount_type, discount_value, is_active } = req.body;
+
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
+  }
+
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Check if coupon code already exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE code = ?", [code]);
       if (existing.length > 0) {
-        return res.status(409).json({ message: "Coupon code already exists" });
+        return res.status(400).json({ message: "Coupon code already exists" });
       }
 
       await connection.query(
-        `INSERT INTO coupons (code, discount, expiry_date, is_active) VALUES (?, ?, ?, ?)`,
-        [code, discount, expiry_date || null, is_active ? 1 : 0]
+        "INSERT INTO coupons (code, discount_type, discount_value, is_active, created_at) VALUES (?, ?, ?, ?, NOW())",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0]
       );
 
       res.status(201).json({ message: "Coupon created successfully" });
@@ -2427,114 +2563,47 @@ app.post("/api/coupons", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get all coupons
-app.get("/api/coupons", async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query("SELECT * FROM coupons");
+// Update a coupon (admin)
+app.put("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { code, discount_type, discount_value, is_active } = req.body;
 
-      res.status(200).json({
-        message: "Coupons retrieved successfully",
-        coupons,
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Get all coupons error:", error);
-    res.status(500).json({
-      message: "Failed to fetch coupons",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  if (!code || !discount_type || !discount_value || is_active === undefined) {
+    return res.status(400).json({ message: "All fields are required" });
   }
-});
 
-// Get coupon by ID
-app.get("/api/coupons/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query(
-        "SELECT * FROM coupons WHERE id = ?",
-        [id]
-      );
-
-      if (coupons.length === 0) {
-        return res.status(404).json({ message: "Coupon not found" });
-      }
-
-      res.status(200).json({
-        message: "Coupon retrieved successfully",
-        coupon: coupons[0],
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Get coupon error:", error);
-    res.status(500).json({
-      message: "Failed to fetch coupon",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  if (!["percentage", "fixed"].includes(discount_type)) {
+    return res.status(400).json({ message: "Invalid discount type" });
   }
-});
 
-// Update coupon (admin-only)
-app.put("/api/coupons/:id", authenticateAdmin, async (req, res) => {
+  if (discount_value <= 0) {
+    return res.status(400).json({ message: "Discount value must be positive" });
+  }
+
   try {
-    const { id } = req.params;
-    const { code, discount, expiry_date, is_active } = req.body;
-
-    if (!code || !discount) {
-      return res
-        .status(400)
-        .json({ message: "Code and discount are required" });
-    }
-
     const connection = await pool.getConnection();
     try {
-      const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE id = ?",
-        [id]
-      );
-
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
       if (existing.length === 0) {
         return res.status(404).json({ message: "Coupon not found" });
       }
 
-      const [codeConflict] = await connection.query(
+      // Check if new code is unique (if changed)
+      const [codeCheck] = await connection.query(
         "SELECT id FROM coupons WHERE code = ? AND id != ?",
         [code, id]
       );
-
-      if (codeConflict.length > 0) {
-        return res
-          .status(409)
-          .json({ message: "Coupon code already in use by another coupon" });
+      if (codeCheck.length > 0) {
+        return res.status(400).json({ message: "Coupon code already exists" });
       }
 
       await connection.query(
-        `UPDATE coupons SET 
-          code = ?,
-          discount = ?,
-          expiry_date = ?,
-          is_active = ?
-        WHERE id = ?`,
-        [code, discount, expiry_date || null, is_active ? 1 : 0, id]
+        "UPDATE coupons SET code = ?, discount_type = ?, discount_value = ?, is_active = ? WHERE id = ?",
+        [code.toUpperCase(), discount_type, discount_value, is_active ? 1 : 0, id]
       );
 
-      const [updatedCoupon] = await connection.query(
-        "SELECT * FROM coupons WHERE id = ?",
-        [id]
-      );
-
-      res.status(200).json({
-        message: "Coupon updated successfully",
-        coupon: updatedCoupon[0],
-      });
+      res.status(200).json({ message: "Coupon updated successfully" });
     } finally {
       connection.release();
     }
@@ -2547,24 +2616,20 @@ app.put("/api/coupons/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Delete coupon (admin-only)
-app.delete("/api/coupons/:id", authenticateAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
+// Delete a coupon (admin)
+app.delete("/api/admin/coupons/:id", authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
 
+  try {
     const connection = await pool.getConnection();
     try {
-      const [existing] = await connection.query(
-        "SELECT id FROM coupons WHERE id = ?",
-        [id]
-      );
-
+      // Check if coupon exists
+      const [existing] = await connection.query("SELECT id FROM coupons WHERE id = ?", [id]);
       if (existing.length === 0) {
         return res.status(404).json({ message: "Coupon not found" });
       }
 
       await connection.query("DELETE FROM coupons WHERE id = ?", [id]);
-
       res.status(200).json({ message: "Coupon deleted successfully" });
     } finally {
       connection.release();
@@ -2578,54 +2643,7 @@ app.delete("/api/coupons/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/coupons/code/:code", async (req, res) => {
-  try {
-    const { code } = req.params;
 
-    const connection = await pool.getConnection();
-    try {
-      const [coupons] = await connection.query(
-        `SELECT * FROM coupons 
-         WHERE code = ? 
-         AND is_active = TRUE 
-         AND (valid_from IS NULL OR valid_from <= NOW())
-         AND (valid_until IS NULL OR valid_until >= NOW())
-         AND (max_uses IS NULL OR current_uses < max_uses)`,
-        [code]
-      );
-
-      if (coupons.length === 0) {
-        return res.status(404).json({ message: "Valid coupon not found" });
-      }
-
-      const formattedCoupon = {
-        ...coupons[0],
-        valid_from: coupons[0].valid_from
-          ? new Date(coupons[0].valid_from).toISOString()
-          : null,
-        valid_until: coupons[0].valid_until
-          ? new Date(coupons[0].valid_until).toISOString()
-          : null,
-        created_at: coupons[0].created_at
-          ? new Date(coupons[0].created_at).toISOString()
-          : null,
-      };
-
-      res.status(200).json({
-        message: "Coupon retrieved successfully",
-        coupon: formattedCoupon,
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Get coupon by code error:", error);
-    res.status(500).json({
-      message: "Failed to fetch coupon",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-});
 
 // Start the server
 const PORT = process.env.PORT || 5000;

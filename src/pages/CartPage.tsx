@@ -5,30 +5,18 @@ import { Link } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 
 const CartPage = () => {
-  const { cartItems, removeFromCart, updateQuantity } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, calculateTotal } = useCart();
 
   const calculateSubtotal = () => {
     return cartItems
-      .reduce((total, item) => {
-        const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
-        return total + price * item.quantity;
-      }, 0)
+      .reduce((total, item) => total + item.price * item.quantity, 0)
       .toFixed(2);
   };
 
   const calculateConvenienceFee = () => {
     const subtotal = parseFloat(calculateSubtotal());
-    if (subtotal < 500) {
-      return 39;
-    }
-    const increments = Math.floor(subtotal / 500);
-    return 39 + increments * 10;
-  };
-
-  const calculateTotal = () => {
-    const subtotal = parseFloat(calculateSubtotal());
-    const convenienceFee = calculateConvenienceFee();
-    return (subtotal + convenienceFee).toFixed(2);
+    const total = parseFloat(calculateTotal());
+    return (total - subtotal).toFixed(2);
   };
 
   return (
@@ -65,6 +53,9 @@ const CartPage = () => {
                         src={item.image}
                         alt={item.name}
                         className="w-24 h-24 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.src = "/fallback-image.png";
+                        }}
                       />
                       <div className="flex-1">
                         <div className="flex justify-between">
@@ -77,11 +68,7 @@ const CartPage = () => {
                           </button>
                         </div>
                         <p className="text-primary font-semibold mt-2">
-                          Rs.{" "}
-                          {(typeof item.price === "string"
-                            ? parseFloat(item.price)
-                            : item.price
-                          ).toFixed(2)}
+                          Rs. {item.price.toFixed(2)}
                         </p>
                         <div className="flex items-center mt-4">
                           <Button
@@ -133,7 +120,7 @@ const CartPage = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Convenience Fee</span>
-                    <span>Rs. {calculateConvenienceFee().toFixed(2)}</span>
+                    <span>Rs. {calculateConvenienceFee()}</span>
                   </div>
                   <div className="border-t pt-4 flex justify-between font-semibold text-lg">
                     <span>Total</span>

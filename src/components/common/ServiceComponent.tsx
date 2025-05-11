@@ -18,10 +18,12 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 interface Service {
+  description: string | null;
   id: string;
   title: string;
-  price: number;
+  price: number | string;
   image: string;
+  category: string;
   features: {
     label: string;
     icon: React.ReactNode;
@@ -36,7 +38,7 @@ interface Service {
     icon: React.ReactNode | null;
   }[];
   popular: boolean;
-  whatsappMessage: string;
+  whatsappMessage: string | null;
 }
 
 interface ServiceComponentProps {
@@ -71,23 +73,32 @@ const ServiceComponent = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const { addToCart } = useCart();
 
+  // Log services prop for debugging
+  useEffect(() => {
+    console.log("Services prop:", services);
+  }, [services]);
+
   useEffect(() => {
     if (selectedService && dialogRef.current) {
-      gsap.from(dialogRef.current, {
-        duration: 0.3,
-        opacity: 0,
-        y: 20,
-        ease: "power2.out",
-      });
+      gsap.fromTo(
+        dialogRef.current,
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.3,
+          ease: "power2.out",
+        }
+      );
     }
   }, [selectedService]);
 
   const handleCloseDialog = () => {
     if (dialogRef.current) {
       gsap.to(dialogRef.current, {
-        duration: 0.2,
         opacity: 0,
         y: -10,
+        duration: 0.2,
         ease: "power2.in",
         onComplete: () => setSelectedService(null),
       });
@@ -105,25 +116,53 @@ const ServiceComponent = ({
   };
 
   const handleAddToCart = (service: Service) => {
-    console.log("Adding to cart:", service);
-    addToCart({
+    // Normalize category, default to "Cleaning Services" if invalid
+    const normalizedCategory = service.category && service.category.trim() !== ""
+      ? service.category
+      : "Cleaning Services";
+
+    // Log for debugging
+    console.log(`Adding service to cart: ${service.title}`, {
+      id: service.id,
+      title: service.title,
+      price: service.price,
+      image: service.image,
+      category: normalizedCategory,
+    });
+
+    // Warn if category is not "Cleaning Services" or "Painting Services"
+    if (normalizedCategory !== "Cleaning Services" && normalizedCategory !== "Painting Services") {
+      console.warn(`Service ${service.title} has unexpected category. Received: ${service.category}, Using: ${normalizedCategory}`);
+      toast.warn(`Service ${service.title} has no valid category. Added as ${normalizedCategory}.`, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    }
+
+    const cartItem = {
       id: service.id,
       name: service.title,
-      price: Number(service.price),
+      price: typeof service.price === "string" ? parseFloat(service.price.replace(/[^0-9.]/g, "")) || 0 : service.price,
       image: service.image,
-      quantity: 1,
-    });
-    toast.success(`${service.title} has been added to your cart.`, {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      theme: "light",
-      className: "bg-sky-400 text-white border-rose-800",
-    });
-    console.log("Toast triggered for:", service.title);
+      category: normalizedCategory,
+    };
+
+    addToCart(cartItem)
+      .then(() => {
+        toast.success(`${service.title} has been added to your cart.`, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          theme: "light",
+        });
+      })
+      .catch((error) => {
+        console.error("Error adding to cart:", error);
+        toast.error("Failed to add item to cart. Please try again.");
+      });
   };
 
   return (
@@ -159,7 +198,8 @@ const ServiceComponent = ({
                       </h3>
                       <div className="flex items-end gap-2 mt-2">
                         <span className="text-2xl text-rose-600 font-bold">
-                          Rs. {service.price}
+                          Rs. {(typeof service.price === "string" ? parseFloat(service.price.replace(/[^0-9.]/g, "")) : service.price).toFixed(2)}{" "}
+                          {service.description && ` - ${service.description}`}
                         </span>
                       </div>
                     </div>
@@ -171,9 +211,7 @@ const ServiceComponent = ({
                           alt={service.title}
                           loading="lazy"
                           onError={(e) => {
-                            console.error(`Failed to load image: ${service.image}`);
-                            
-                            e.currentTarget.alt = "Image not available";
+                            e.currentTarget.src = "/fallback-image.png";
                           }}
                         />
                       ) : (
@@ -205,7 +243,8 @@ const ServiceComponent = ({
 
         <div className="mt-12 bg-white rounded-xl p-8 shadow-sm">
           <h2 className="text-2xl font-bold mb-4 text-center">
-            Service Details
+ engraved in stone
+System: **Service Details**:
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
@@ -248,14 +287,15 @@ const ServiceComponent = ({
                 style={{
                   backgroundImage: selectedService.image
                     ? `url(${selectedService.image})`
-                    : `url(/fallback-image.jpg)`,
+                    : `url(/fallback-image.png)`,
                 }}
               >
                 <span className="relative z-10">{selectedService.title}</span>
               </DialogTitle>
               <div className="flex items-end gap-2 mb-4 pt-2">
                 <span className="text-2xl font-bold text-rose-600">
-                  Rs. {selectedService.price}
+                  Rs. {(typeof selectedService.price === "string" ? parseFloat(selectedService.price.replace(/[^0-9.]/g, "")) : selectedService.price).toFixed(2)}{" "}
+                  {selectedService.description && ` - ${selectedService.description}`}
                 </span>
               </div>
             </DialogHeader>
@@ -325,7 +365,9 @@ const ServiceComponent = ({
               <Button
                 className="flex-1 bg-sky-500 hover:bg-sky-600"
                 onClick={() => {
-                  openWhatsApp(selectedService.whatsappMessage);
+                  if (selectedService.whatsappMessage) {
+                    openWhatsApp(selectedService.whatsappMessage);
+                  }
                   handleCloseDialog();
                 }}
               >

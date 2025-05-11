@@ -6,19 +6,20 @@ import { Link } from "react-router-dom";
 import Button from "./Button";
 
 interface CartItem {
-  id: string; 
+  id: string;
   name: string;
   price: number;
   image: string;
   quantity: number;
+  category: string;
 }
 
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
-  removeFromCart: (itemId: string) => void; // Changed from number to string
-  updateQuantity: (itemId: string, newQuantity: number) => void; // Changed from number to string
+  removeFromCart: (itemId: string) => void;
+  updateQuantity: (itemId: string, newQuantity: number) => void;
   calculateTotal: () => string;
 }
 
@@ -28,6 +29,7 @@ const CartModal: React.FC<CartModalProps> = ({
   cartItems,
   removeFromCart,
   updateQuantity,
+  calculateTotal,
 }) => {
   const cartModalRef = useRef<HTMLDivElement>(null);
 
@@ -41,24 +43,13 @@ const CartModal: React.FC<CartModalProps> = ({
   // Calculate Convenience Fee
   const calculateConvenienceFee = () => {
     const subtotal = parseFloat(calculateSubtotal());
-    if (subtotal < 500) {
-      return 39;
-    }
-    const increments = Math.floor(subtotal / 500);
-    return 39 + increments * 10;
-  };
-
-  // Calculate Total (Subtotal + Convenience Fee)
-  const calculateTotalWithFee = () => {
-    const subtotal = parseFloat(calculateSubtotal());
-    const convenienceFee = calculateConvenienceFee();
-    return (subtotal + convenienceFee).toFixed(2);
+    const total = parseFloat(calculateTotal());
+    return (total - subtotal).toFixed(2);
   };
 
   useEffect(() => {
     if (cartModalRef.current) {
       if (isOpen) {
-        // Animate cart modal in
         gsap.fromTo(
           cartModalRef.current,
           { opacity: 0, y: -20 },
@@ -70,7 +61,6 @@ const CartModal: React.FC<CartModalProps> = ({
           }
         );
       } else {
-        // Animate cart modal out
         gsap.to(cartModalRef.current, {
           opacity: 0,
           y: -20,
@@ -115,10 +105,14 @@ const CartModal: React.FC<CartModalProps> = ({
                   src={item.image}
                   alt={item.name}
                   className="w-16 h-16 object-cover rounded"
+                  onError={(e) => {
+                    e.currentTarget.src = "/fallback-image.png";
+                  }}
                 />
                 <div className="flex-1">
                   <h4 className="font-medium">{item.name}</h4>
-                  <p className="text-blue-600 font-semibold">Rs {item.price}</p>
+                  <p className="text-blue-600 font-semibold">Rs {item.price.toFixed(2)}</p>
+                  <p className="text-gray-500 text-sm">{item.category}</p>
                   <div className="flex items-center mt-2">
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -153,13 +147,15 @@ const CartModal: React.FC<CartModalProps> = ({
             <span className="font-semibold">Subtotal:</span>
             <span className="font-bold text-gray-700">Rs {calculateSubtotal()}</span>
           </div>
-          <div className="flex justify-between mb-2">
-            <span className="font-semibold">Convenience Fee:</span>
-            <span className="font-bold text-gray-700">Rs {calculateConvenienceFee()}</span>
-          </div>
+          {parseFloat(calculateConvenienceFee()) > 0 && (
+            <div className="flex justify-between mb-2">
+              <span className="font-semibold">Convenience Fee:</span>
+              <span className="font-bold text-gray-700">Rs {calculateConvenienceFee()}</span>
+            </div>
+          )}
           <div className="flex justify-between mb-4">
             <span className="font-semibold">Total:</span>
-            <span className="font-bold text-blue-700">Rs {calculateTotalWithFee()}</span>
+            <span className="font-bold text-blue-700">Rs {calculateTotal()}</span>
           </div>
           <Link to="/checkout">
             <Button

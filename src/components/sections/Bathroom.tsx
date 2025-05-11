@@ -132,6 +132,7 @@ const Bathroom = () => {
               price: Number(service.price),
               image: service.image,
               description: service.description,
+              category: service.category, 
               features: parsedFeatures.map((f: any) => ({
                 ...f,
                 icon: f.icon && iconMap.hasOwnProperty(f.icon) 

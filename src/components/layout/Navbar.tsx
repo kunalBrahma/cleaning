@@ -10,18 +10,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import CartModal from "../ui/CartModal";
 import { useCart } from "@/contexts/CartContext";
 
+
+
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
-  
-  const { cartItems, removeFromCart, updateQuantity } = useCart();
+
+  const { cartItems, removeFromCart, updateQuantity, calculateTotal } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
 
   const cartModalRef = useRef<HTMLDivElement>(null);
-
   const menuRef = useRef<HTMLDivElement>(null);
   const navItemsRef = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -74,7 +75,6 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     if (cartModalRef.current) {
       if (showCartModal) {
-        // Animate cart modal in
         gsap.fromTo(
           cartModalRef.current,
           { opacity: 0, y: -20 },
@@ -86,12 +86,10 @@ const Navbar: React.FC = () => {
           }
         );
 
-        // Close menu if it's open
         if (isMenuOpen) {
           setIsMenuOpen(false);
         }
       } else {
-        // Animate cart modal out
         gsap.to(cartModalRef.current, {
           opacity: 0,
           y: -20,
@@ -151,12 +149,6 @@ const Navbar: React.FC = () => {
     setShowCartModal(false);
   };
 
-  const calculateTotal = () => {
-    return cartItems
-      .reduce((total, item) => total + item.price * item.quantity, 0)
-      .toFixed(2);
-  };
-
   const navItems = [
     { label: "Home", path: "/" },
     { label: "About", path: "/about" },
@@ -185,7 +177,6 @@ const Navbar: React.FC = () => {
       <Container>
         {/* Desktop Layout */}
         <div className="hidden lg:flex items-center justify-between">
-          {/* Logo */}
           <Link
             to="/"
             className="text-2xl font-bold text-blue-700 flex items-center"
@@ -197,7 +188,6 @@ const Navbar: React.FC = () => {
             />
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="flex items-center space-x-1">
             {navItems.map((item, index) => (
               <div key={index} className="relative group">
@@ -218,7 +208,6 @@ const Navbar: React.FC = () => {
                   </Link>
                 )}
 
-                {/* Dropdown for Services */}
                 {item.hasDropdown && (
                   <div className="absolute left-0 mt-2 w-48 rounded-md z-100 shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right">
                     <div className="py-1">
@@ -238,9 +227,7 @@ const Navbar: React.FC = () => {
             ))}
           </div>
 
-          {/* Authentication Section - Desktop */}
           <div className="flex items-center gap-4">
-            {/* Cart Icon */}
             <button
               onClick={toggleCartModal}
               className="text-gray-700 hover:text-blue-700 relative"
@@ -253,7 +240,6 @@ const Navbar: React.FC = () => {
               )}
             </button>
 
-            {/* Auth Buttons */}
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
                 <Link
@@ -283,9 +269,8 @@ const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Layout - Logo in middle, hamburger menu on left, shopping bag on right */}
+        {/* Mobile Layout */}
         <div className="flex items-center justify-between lg:hidden">
-          {/* Hamburger Menu Button - Left */}
           <button
             className="text-gray-700 focus:outline-none"
             onClick={toggleMenu}
@@ -304,7 +289,6 @@ const Navbar: React.FC = () => {
             )}
           </button>
 
-          {/* Logo - Middle */}
           <Link
             to="/"
             className="text-2xl font-bold text-blue-700 flex items-center justify-center"
@@ -312,7 +296,6 @@ const Navbar: React.FC = () => {
             <img src="/logo.png" alt="logo" className="w-[120px] h-[80px]" />
           </Link>
 
-          {/* Shopping Cart - Right */}
           <button onClick={toggleCartModal} className="text-gray-700 relative">
             <ShoppingCart size={24} />
             {cartItems.length > 0 && (
@@ -323,7 +306,6 @@ const Navbar: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Navigation */}
         <div
           ref={menuRef}
           className="lg:hidden bg-white overflow-hidden"
@@ -381,7 +363,6 @@ const Navbar: React.FC = () => {
               </div>
             ))}
 
-            {/* Auth Section - Mobile */}
             <div className="mt-3 px-4">
               {isAuthenticated ? (
                 <div className="flex flex-col gap-2">
@@ -430,17 +411,12 @@ const Navbar: React.FC = () => {
       </Container>
       <AuthDialog open={showAuthModal} onOpenChange={setShowAuthModal} />
 
-      {/* Cart Modal */}
       {showCartModal && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={closeCartModal}
           />
-
-          {/* Cart Modal */}
-
           <CartModal
             isOpen={showCartModal}
             onClose={closeCartModal}
