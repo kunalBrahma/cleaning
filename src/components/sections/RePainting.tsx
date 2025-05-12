@@ -187,36 +187,35 @@ const RePainting = () => {
   );
 
   const serviceDetails = {
-    includes: [
-      {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Professional cleaning of all surfaces",
-      },
-      {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Eco-friendly cleaning products",
-      },
-      {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Complete sanitization",
-      },
-    ],
-    notes: [
-      {
-        icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
-        label: "Service duration: 2-3 hours depending on bathroom size",
-      },
-      {
-        icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
-        label: "Our team brings all necessary equipment",
-      },
-      {
-        icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
-        label: "Click 'Book Now' to schedule your cleaning",
-      },
-    ],
-  };
-
+  includes: [
+    {
+      icon: <FaPaintRoller className="text-green-500 mt-1" size={16} />,
+      label: "Smooth and even wall painting by professionals",
+    },
+    {
+      icon: <FaTint className="text-green-500 mt-1" size={16} />,
+      label: "Use of premium, eco-friendly paints",
+    },
+    {
+      icon: <FaShieldAlt className="text-green-500 mt-1" size={16} />,
+      label: "Protective covering for furniture and floors",
+    },
+  ],
+  notes: [
+    {
+      icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
+      label: "Project duration depends on area and paint type",
+    },
+    {
+      icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
+      label: "Our team comes fully equipped for prep and finish",
+    },
+    {
+      icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
+      label: "Click 'Book Now' to get started with your painting service",
+    },
+  ],
+};
   return (
     <ServiceComponent
       services={services}

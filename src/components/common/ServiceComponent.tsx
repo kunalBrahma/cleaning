@@ -62,7 +62,6 @@ interface ServiceComponentProps {
 
 const ServiceComponent = ({
   services,
-  whatsappNumber,
   id,
   backgroundImage,
   title,
@@ -108,18 +107,20 @@ const ServiceComponent = ({
   };
 
   const openWhatsApp = (message: string) => {
-    const encodedMessage = encodeURIComponent(message);
-    window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodedMessage}`,
-      "_blank"
-    );
-  };
+  const encodedMessage = encodeURIComponent(message);
+  window.open(
+    `https://wa.me/918133039362?text=${encodedMessage}`,
+    "_blank"
+  );
+};
+
 
   const handleAddToCart = (service: Service) => {
     // Normalize category, default to "Cleaning Services" if invalid
-    const normalizedCategory = service.category && service.category.trim() !== ""
-      ? service.category
-      : "Cleaning Services";
+    const normalizedCategory =
+      service.category && service.category.trim() !== ""
+        ? service.category
+        : "Cleaning Services";
 
     // Log for debugging
     console.log(`Adding service to cart: ${service.title}`, {
@@ -130,19 +131,13 @@ const ServiceComponent = ({
       category: normalizedCategory,
     });
 
-    // Warn if category is not "Cleaning Services" or "Painting Services"
-    if (normalizedCategory !== "Cleaning Services" && normalizedCategory !== "Painting Services") {
-      console.warn(`Service ${service.title} has unexpected category. Received: ${service.category}, Using: ${normalizedCategory}`);
-      toast.warn(`Service ${service.title} has no valid category. Added as ${normalizedCategory}.`, {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    }
-
     const cartItem = {
       id: service.id,
       name: service.title,
-      price: typeof service.price === "string" ? parseFloat(service.price.replace(/[^0-9.]/g, "")) || 0 : service.price,
+      price:
+        typeof service.price === "string"
+          ? parseFloat(service.price.replace(/[^0-9.]/g, "")) || 0
+          : service.price,
       image: service.image,
       category: normalizedCategory,
     };
@@ -165,6 +160,12 @@ const ServiceComponent = ({
       });
   };
 
+  // Helper function to construct image URL
+  const getImageUrl = (image: string | null): string | null => {
+    if (!image) return null;
+    return image.startsWith("http") ? image : `/api${image}`;
+  };
+
   return (
     <section
       id={id}
@@ -177,74 +178,83 @@ const ServiceComponent = ({
         <SectionHeading title={title} subtitle={subtitle} center={true} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          {services.map((service, index) => (
-            <Card
-              key={index}
-              className={`relative flex flex-col transition-all hover:shadow-lg ${
-                service.popular ? "border-2 border-sky-500" : ""
-              }`}
-            >
-              {service.popular && (
-                <Badge className="absolute -top-3 -right-3 bg-sky-400 text-white">
-                  Most Popular
-                </Badge>
-              )}
-              <div className="flex-1 p-4 w-full">
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl sm:text-xl font-[500]">
-                        {service.title}
-                      </h3>
-                      <div className="flex items-end gap-2 mt-2">
-                        <span className="text-2xl text-rose-600 font-bold">
-                          Rs. {(typeof service.price === "string" ? parseFloat(service.price.replace(/[^0-9.]/g, "")) : service.price).toFixed(2)}{" "}
-                          {service.description && ` - ${service.description}`}
-                        </span>
+          {services.map((service, index) => {
+            const imageUrl = getImageUrl(service.image);
+            return (
+              <Card
+                key={index}
+                className={`relative flex flex-col transition-all hover:shadow-lg ${
+                  service.popular ? "border-2 border-sky-500" : ""
+                }`}
+              >
+                {service.popular && (
+                  <Badge className="absolute -top-3 -right-3 bg-sky-400 text-white">
+                    Most Popular
+                  </Badge>
+                )}
+                <div className="flex-1 p-4 w-full">
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl sm:text-xl font-[500]">
+                          {service.title}
+                        </h3>
+                        <div className="flex items-end gap-2 mt-2">
+                          <span className="text-2xl text-rose-600 font-bold">
+                            Rs.{" "}
+                            {(typeof service.price === "string"
+                              ? parseFloat(
+                                  service.price.replace(/[^0-9.]/g, "")
+                                )
+                              : service.price
+                            ).toFixed(2)}{" "}
+                            {service.description && ` - ${service.description}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            className="w-full h-full object-cover"
+                            alt={service.title}
+                            loading="lazy"
+                            onError={(e) => {
+                              console.error("Failed to load image:", imageUrl);
+                              e.currentTarget.src = "/fallback-image.png";
+                            }}
+                          />
+                        ) : (
+                          <p className="text-red-500 text-center flex items-center justify-center h-full">
+                            Image not available
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
-                      {service.image ? (
-                        <img
-                          src={service.image}
-                          className="w-full h-full object-cover"
-                          alt={service.title}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.src = "/fallback-image.png";
-                          }}
-                        />
-                      ) : (
-                        <p className="text-red-500 text-center flex items-center justify-center h-full">
-                          Image not available
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardFooter className="mt-4 flex flex-col gap-2">
-                  <button
-                    className="w-full text-center text-sky-600 hover:text-sky-800 font-medium transition-colors"
-                    onClick={() => setSelectedService(service)}
-                  >
-                    View More Details
-                  </button>
-                  <Button
-                    className="w-full"
-                    onClick={() => handleAddToCart(service)}
-                  >
-                    Add to Cart
-                  </Button>
-                </CardFooter>
-              </div>
-            </Card>
-          ))}
+                  </CardHeader>
+                  <CardFooter className="mt-4 flex flex-col gap-2">
+                    <button
+                      className="w-full text-center text-sky-600 hover:text-sky-800 font-medium transition-colors"
+                      onClick={() => setSelectedService(service)}
+                    >
+                      View More Details
+                    </button>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleAddToCart(service)}
+                    >
+                      Add to Cart
+                    </Button>
+                  </CardFooter>
+                </div>
+              </Card>
+            );
+          })}
         </div>
 
         <div className="mt-12 bg-white rounded-xl p-8 shadow-sm">
           <h2 className="text-2xl font-bold mb-4 text-center">
- engraved in stone
-System: **Service Details**:
+            Service Details
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
@@ -285,8 +295,8 @@ System: **Service Details**:
               <DialogTitle
                 className="text-2xl py-20 px-4 text-white font-bold rounded-lg bg-cover bg-center relative after:content-[''] after:absolute after:inset-0 after:bg-black/40 after:rounded-lg"
                 style={{
-                  backgroundImage: selectedService.image
-                    ? `url(${selectedService.image})`
+                  backgroundImage: getImageUrl(selectedService.image)
+                    ? `url(${getImageUrl(selectedService.image)})`
                     : `url(/fallback-image.png)`,
                 }}
               >
@@ -294,8 +304,13 @@ System: **Service Details**:
               </DialogTitle>
               <div className="flex items-end gap-2 mb-4 pt-2">
                 <span className="text-2xl font-bold text-rose-600">
-                  Rs. {(typeof selectedService.price === "string" ? parseFloat(selectedService.price.replace(/[^0-9.]/g, "")) : selectedService.price).toFixed(2)}{" "}
-                  {selectedService.description && ` - ${selectedService.description}`}
+                  Rs.{" "}
+                  {(typeof selectedService.price === "string"
+                    ? parseFloat(selectedService.price.replace(/[^0-9.]/g, ""))
+                    : selectedService.price
+                  ).toFixed(2)}{" "}
+                  {selectedService.description &&
+                    ` - ${selectedService.description}`}
                 </span>
               </div>
             </DialogHeader>

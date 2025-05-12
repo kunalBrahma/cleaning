@@ -194,7 +194,7 @@ app.post("/api/upload", authenticateAdmin, upload.single("file"), async (req, re
       file: {
         filename,
         path: filePath,
-        url: `${baseUrl}${filePath}`,
+        url: `${filePath}`,
       },
     });
   } catch (error) {
@@ -224,7 +224,7 @@ app.post("/api/admin/images", authenticateAdmin, upload.single("image"), async (
       image: {
         filename,
         path: filePath,
-        url: `${baseUrl}${filePath}`,
+        url: `${filePath}`,
       },
     });
   } catch (error) {
@@ -605,7 +605,7 @@ app.get("/api/services-by-category", async (req, res) => {
         }
         servicesByCategory[service.category].push({
           ...service,
-          image: service.image ? `${baseUrl}${service.image}` : null,
+          image: service.image ? `${service.image}` : null,
         });
       });
 
@@ -638,7 +638,7 @@ app.get("/api/services", async (req, res) => {
 
       const formattedServices = services.map((service) => ({
         ...service,
-        icon: service.icon ? `${baseUrl}${service.icon}` : null,
+        icon: service.icon ? `${service.icon}` : null,
       }));
 
       res.status(200).json(formattedServices);
@@ -1502,10 +1502,10 @@ app.post("/api/offerings", authenticateAdmin, async (req, res) => {
         offering: {
           ...newOffering[0],
           image: newOffering[0].image
-            ? `${baseUrl}${newOffering[0].image}`
+            ? `${newOffering[0].image}`
             : null,
           icon: newOffering[0].icon
-            ? `${baseUrl}${newOffering[0].icon}`
+            ? `${newOffering[0].icon}`
             : null,
         },
       });
@@ -1537,7 +1537,7 @@ app.get("/api/offerings", async (req, res) => {
 
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
+        image: offering.image ? `${offering.image}` : null,
         
       }));
 
@@ -1583,10 +1583,10 @@ app.get("/api/offerings/:id", async (req, res) => {
         offering: {
           ...offerings[0],
           image: offerings[0].image
-            ? `${baseUrl}${offerings[0].image}`
+            ? `${offerings[0].image}`
             : null,
           icon: offerings[0].icon
-            ? `${baseUrl}${offerings[0].icon}`
+            ? `${offerings[0].icon}`
             : null,
         },
       });
@@ -1628,10 +1628,10 @@ app.get("/api/offerings/code/:service_code", async (req, res) => {
         offering: {
           ...offerings[0],
           image: offerings[0].image
-            ? `${baseUrl}${offerings[0].image}`
+            ? `${offerings[0].image}`
             : null,
           icon: offerings[0].icon
-            ? `${baseUrl}${offerings[0].icon}`
+            ? `${offerings[0].icon}`
             : null,
         },
       });
@@ -1762,10 +1762,10 @@ app.put("/api/offerings/:id", authenticateAdmin, async (req, res) => {
         offering: {
           ...updatedOffering[0],
           image: updatedOffering[0].image
-            ? `${baseUrl}${updatedOffering[0].image}`
+            ? `${updatedOffering[0].image}`
             : null,
           icon: updatedOffering[0].icon
-            ? `${baseUrl}${updatedOffering[0].icon}`
+            ? `${updatedOffering[0].icon}`
             : null,
         },
       });
@@ -1836,8 +1836,8 @@ app.get("/api/offerings/popular", async (req, res) => {
 
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        image: offering.image ? `${offering.image}` : null,
+        icon: offering.icon ? `${offering.icon}` : null,
       }));
 
       res.status(200).json({
@@ -1875,8 +1875,8 @@ app.get("/api/offerings/category/:category", async (req, res) => {
 
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
-        image: offering.image ? `${baseUrl}${offering.image}` : null,
-        icon: offering.icon ? `${baseUrl}${offering.icon}` : null,
+        image: offering.image ? `${offering.image}` : null,
+        icon: offering.icon ? `${offering.icon}` : null,
       }));
 
       res.status(200).json({

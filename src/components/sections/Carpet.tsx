@@ -7,17 +7,29 @@ import {
   FaClock,
   FaTools,
   FaCheckCircle,
-  FaBroom,
-  FaWater,
+  FaThLarge,
+  FaShower,
+  FaFan,
+  FaImage,
+  FaTint,
   FaTintSlash,
-  FaWind,
-  FaSprayCan,
-  FaUtensils,
-  FaFire,
-  FaBox,
+  FaShieldAlt,
+  FaPaintRoller,
   FaCrown,
   FaEraser,
-  FaShieldAlt,
+  FaWater,
+  FaBroom,
+  FaRecycle,
+  FaSprayCan,
+  FaCouch,
+  FaPumpSoap,
+  FaHandsWash,
+  FaBox,
+  FaWind,
+  FaSoap,
+  FaHandSparkles,
+  FaBrush,
+  FaMap,
 } from "react-icons/fa";
 import { IconType } from "react-icons";
 
@@ -26,22 +38,34 @@ const iconMap: Record<string, IconType> = {
   FaClock,
   FaTools,
   FaCheckCircle,
-  FaBroom,
-  FaWater,
+  FaThLarge,
+  FaShower,
+  FaFan,
+  FaImage,
+  FaTint,
   FaTintSlash,
-  FaWind,
-  FaSprayCan,
-  FaUtensils,
-  FaFire,
-  FaBox,
+  FaShieldAlt,
+  FaPaintRoller,
   FaCrown,
   FaEraser,
-  FaShieldAlt,
+  FaWater,
+  FaBroom,
+  FaRecycle,
+  FaSprayCan,
+  FaCouch,
+  FaPumpSoap,
+  FaHandsWash,
+  FaBox,
+  FaWind,
+  FaSoap,
+  FaHandSparkles,
+  FaBrush,
+  FaMap,
 };
 
 const whatsappNumber = "918638167421";
 
-const Kitchen = () => {
+const Carpet = () => {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,18 +84,18 @@ const Kitchen = () => {
 
         // Check if we have the "Cleaning Services" category in the response
         if (data && data["Cleaning Services"]) {
-          // Filter for subCategory === "Bathroom" services
-          const bathroomServices = data["Cleaning Services"].filter(
-            (service: any) => service.subCategory === "Kitchen"
+          // Filter for subCategory === "Carpet Cleaning" services
+          const CarpetServices = data["Cleaning Services"].filter(
+            (service: any) => service.subCategory === "Carpet Cleaning"
           );
 
-          console.log("Kitchen Cleaning:", bathroomServices); // Log filtered services
+          console.log("Carpet Services:", CarpetServices); // Log filtered services
 
-          if (bathroomServices.length === 0) {
-            setError("No Kitchen services found");
+          if (CarpetServices.length === 0) {
+            setError("No Carpet services found");
           }
 
-          const mappedServices = bathroomServices.map((service: any) => {
+          const mappedServices = CarpetServices.map((service: any) => {
             // Parse features, requirements, exclusions if they're strings
             let parsedFeatures = [];
             let parsedRequirements = [];
@@ -113,6 +137,7 @@ const Kitchen = () => {
               price: Number(service.price),
               image: service.image,
               description: service.description,
+              category: service.category,
               features: parsedFeatures.map((f: any) => ({
                 ...f,
                 icon:
@@ -183,33 +208,33 @@ const Kitchen = () => {
       </div>
     );
 
-  let serviceDetails = {
+  const serviceDetails = {
     includes: [
       {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Professional degreasing of all surfaces",
+        icon: <FaBrush className="text-green-500 mt-1" size={16} />,
+        label: "Deep brushing and vacuuming of carpets",
       },
       {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Eco-friendly cleaning products",
+        icon: <FaPumpSoap className="text-green-500 mt-1" size={16} />,
+        label: "Use of eco-friendly carpet shampoos",
       },
       {
-        icon: <FaCheck className="text-green-500 mt-1" size={16} />,
-        label: "Stainless steel polishing",
+        icon: <FaHandsWash className="text-green-500 mt-1" size={16} />,
+        label: "Sanitization to remove bacteria and allergens",
       },
     ],
     notes: [
       {
         icon: <FaClock className="text-yellow-500 mt-1" size={16} />,
-        label: "Service duration: 1-6 hours depending on kitchen size",
+        label: "Service duration: 1.5 to 3 hours based on carpet area",
       },
       {
         icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
-        label: "Our team brings all necessary equipment and supplies",
+        label: "We bring all cleaning tools and machines",
       },
       {
         icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,
-        label: "Click 'Book Now' to schedule your cleaning",
+        label: "Click 'Book Now' to schedule your carpet cleaning",
       },
     ],
   };
@@ -218,13 +243,13 @@ const Kitchen = () => {
     <ServiceComponent
       services={services}
       whatsappNumber={whatsappNumber}
-      id="kitchen-cleaning"
+      id="Carpet-cleaning"
       backgroundImage="/banner.webp"
-      title="Expert Kitchen, Chimney & Fridge Cleaning Services"
-      subtitle="Thorough degreasing and deep sanitization – from countertops to modular cabinets"
+      title="Expert Carpet Cleaning for a Fresher, Healthier Home"
+      subtitle="Deep cleaning, stain removal, and sanitization — book your carpet refresh today!"
       serviceDetails={serviceDetails}
     />
   );
 };
 
-export default Kitchen;
+export default Carpet;

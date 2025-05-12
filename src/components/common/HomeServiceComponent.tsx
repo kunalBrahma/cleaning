@@ -20,9 +20,9 @@ import "react-toastify/dist/ReactToastify.css";
 export interface Service {
   id: string;
   title: string;
-  price: number; // Changed from string to number
+  price: string;
   image: string;
-  category: string; // Added to match CartItem
+  category: string;
   features: {
     label: string;
     icon: React.ReactNode;
@@ -40,7 +40,7 @@ export interface Service {
   whatsappMessage: string;
   pricing?: {
     bhk: string;
-    price: number; // Changed from string to number
+    price: string;
     time: string;
   }[];
 }
@@ -70,7 +70,6 @@ interface HomeServiceComponentProps {
 
 const HomeServiceComponent = ({
   services,
-  // whatsappNumber,
   id,
   backgroundImage,
   title,
@@ -84,44 +83,50 @@ const HomeServiceComponent = ({
   const [selectedType, setSelectedType] = useState<{
     service: Service;
     bhk: string;
-    price: number; // Changed to number
+    price: string;
   } | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const typeDialogRef = useRef<HTMLDivElement>(null);
 
+  // Helper function to construct image URL
+  const getImageUrl = (image: string | null): string | null => {
+    if (!image) return null;
+    return image.startsWith("http") ? image : `/api${image}`;
+  };
+
+  // Helper function to get display price
+  const getDisplayPrice = (service: Service): string => {
+    if (service.pricing && service.pricing.length > 0) {
+      return service.pricing[0].price; // Use first price from pricing table
+    }
+    return service.price;
+  };
+
   useEffect(() => {
     if (selectedService && dialogRef.current) {
-      gsap.fromTo(
-        dialogRef.current,
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.3,
-          ease: "power2.out",
-        }
-      );
+      gsap.from(dialogRef.current, {
+        duration: 0.3,
+        opacity: 0,
+        y: 20,
+        ease: "power2.out",
+      });
     }
     if (selectedType && typeDialogRef.current) {
-      gsap.fromTo(
-        typeDialogRef.current,
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.3,
-          ease: "power2.out",
-        }
-      );
+      gsap.from(typeDialogRef.current, {
+        duration: 0.3,
+        opacity: 0,
+        y: 20,
+        ease: "power2.out",
+      });
     }
   }, [selectedService, selectedType]);
 
   const handleCloseDialog = () => {
     if (dialogRef.current) {
       gsap.to(dialogRef.current, {
+        duration: 0.2,
         opacity: 0,
         y: -10,
-        duration: 0.2,
         ease: "power2.in",
         onComplete: () => setSelectedService(null),
       });
@@ -133,9 +138,9 @@ const HomeServiceComponent = ({
   const handleCloseTypeDialog = () => {
     if (typeDialogRef.current) {
       gsap.to(typeDialogRef.current, {
+        duration: 0.2,
         opacity: 0,
         y: -10,
-        duration: 0.2,
         ease: "power2.in",
         onComplete: () => setSelectedType(null),
       });
@@ -144,41 +149,50 @@ const HomeServiceComponent = ({
     }
   };
 
-  // const openWhatsApp = (message: string) => {
-  //   const encodedMessage = encodeURIComponent(message);
-  //   window.open(
-  //     `https://wa.me/${whatsappNumber}?text=${encodedMessage}`,
-  //     "_blank"
-  //   );
-  // };
 
-  const handleAddToCart = (service: Service, _bhk?: string, _price?: number) => {
-  const cartItem = {
-    id: service.id,
-    name: service.title,
-    price: service.price,
-    image: service.image,
-    category: service.category, // Make sure this is included
-  };
-  
-  addToCart(cartItem)
-    .then(() => {
-      toast.success(`${service.title} has been added to your cart.`, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "light",
-        className: "bg-sky-400 text-white border-rose-800",
-      });
-    })
-    .catch((error) => {
-      console.error("Error adding to cart:", error);
-      toast.error("Failed to add item to cart. Please try again.");
-    });
+
+  const openWhatsApp = (message: string) => {
+  const encodedMessage = encodeURIComponent(message);
+  window.open(
+    `https://wa.me/918133039362?text=${encodedMessage}`,
+    "_blank"
+  );
 };
+
+
+  const handleAddToCart = (service: Service, bhk?: string, price?: string) => {
+    // Normalize category, default to "Cleaning Services" if invalid
+    const normalizedCategory = service.category && service.category.trim() !== ""
+      ? service.category
+      : "Cleaning Services";
+
+    const priceNumber = Number((price || getDisplayPrice(service)).replace(/[^0-9.-]+/g, ""));
+    const itemId = bhk ? `${service.id}-${bhk}` : service.id;
+    const itemName = bhk ? `${service.title} (${bhk})` : service.title;
+
+    addToCart({
+    id: itemId,
+    name: itemName,
+    price: priceNumber,
+    image: service.image,
+    category: normalizedCategory, 
+  });
+
+    toast.success(`${itemName} has been added to your cart.`, {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      theme: "light",
+      className: "bg-sky-400 text-white border-rose-800",
+    });
+
+    if (bhk) {
+      handleCloseTypeDialog();
+    }
+  };
 
   const handleSelectType = (service: Service) => {
     if (service.pricing && service.pricing.length > 0) {
@@ -204,76 +218,80 @@ const HomeServiceComponent = ({
         <SectionHeading title={title} subtitle={subtitle} center={true} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          {services.map((service, index) => (
-            <Card
-              key={index}
-              className={`relative flex flex-col transition-all hover:shadow-lg ${
-                service.popular ? "border-2 border-sky-500" : ""
-              }`}
-            >
-              {service.popular && (
-                <Badge className="absolute -top-3 -right-3 bg-sky-400 text-white">
-                  Most Popular
-                </Badge>
-              )}
-              <div className="flex-1 p-4 w-full">
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl sm:text-xl font-[500]">
-                        {service.title}
-                      </h3>
-                      <div className="flex items-end gap-2 mt-2">
-                        <span className="text-2xl text-rose-600 font-bold">
-                          Rs. {service.price.toFixed(2)}
-                        </span>
+          {services.map((service, index) => {
+            const imageUrl = getImageUrl(service.image);
+            return (
+              <Card
+                key={index}
+                className={`relative flex flex-col transition-all hover:shadow-lg ${
+                  service.popular ? "border-2 border-sky-500" : ""
+                }`}
+              >
+                {service.popular && (
+                  <Badge className="absolute -top-3 -right-3 bg-sky-400 text-white">
+                    Most Popular
+                  </Badge>
+                )}
+                <div className="flex-1 p-4 w-full">
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl sm:text-xl font-[500]">
+                          {service.title}
+                        </h3>
+                        <div className="flex items-end gap-2 mt-2">
+                          <span className="text-2xl text-rose-600 font-bold">
+                            {getDisplayPrice(service)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            className="w-full h-full object-cover"
+                            alt={service.title}
+                            loading="lazy"
+                            onError={(e) => {
+                              console.error(`Failed to load image: ${imageUrl}`);
+                              e.currentTarget.src = "/fallback-image.png";
+                            }}
+                          />
+                        ) : (
+                          <p className="text-red-500 text-center flex items-center justify-center h-full">
+                            Image not available
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="w-full sm:w-32 h-32 overflow-hidden rounded-xl">
-                      {service.image ? (
-                        <img
-                          src={service.image}
-                          className="w-full h-full object-cover"
-                          alt={service.title}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.src = "/fallback-image.png";
-                          }}
-                        />
-                      ) : (
-                        <p className="text-red-500 text-center flex items-center justify-center h-full">
-                          Image not available
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardFooter className="mt-4 flex flex-col gap-2">
-                  <button
-                    className="w-full text-center text-sky-600 hover:text-sky-800 font-medium transition-colors"
-                    onClick={() => setSelectedService(service)}
-                  >
-                    View More Details
-                  </button>
-                  {showTypeSelection ? (
-                    <Button
-                      className="w-full bg-green-500 hover:bg-green-600"
-                      onClick={() => handleSelectType(service)}
+                  </CardHeader>
+                  <CardFooter className="mt-4 flex flex-col gap-2">
+                    <button
+                      className="w-full text-center text-sky-600 hover:text-sky-800 font-medium transition-colors"
+                      onClick={() => setSelectedService(service)}
                     >
-                      {service.pricing ? "Select Type" : "Add to Cart"}
-                    </Button>
-                  ) : (
-                    <Button
-                      className="w-full"
-                      onClick={() => handleAddToCart(service)}
-                    >
-                      Add to Cart
-                    </Button>
-                  )}
-                </CardFooter>
-              </div>
-            </Card>
-          ))}
+                      View More Details
+                    </button>
+                    {showTypeSelection ? (
+                      <Button
+                        className="w-full bg-green-500 hover:bg-green-600"
+                        onClick={() => handleSelectType(service)}
+                      >
+                        {service.pricing ? "Select Type" : "Add to Cart"}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleAddToCart(service)}
+                      >
+                        Add to Cart
+                      </Button>
+                    )}
+                  </CardFooter>
+                </div>
+              </Card>
+            );
+          })}
         </div>
 
         {pricingTable && (
@@ -326,8 +344,8 @@ const HomeServiceComponent = ({
               <DialogTitle
                 className="text-2xl py-20 px-4 text-white font-bold rounded-lg bg-center relative after:content-[''] after:absolute after:inset-0 after:bg-black/40 after:rounded-lg"
                 style={{
-                  backgroundImage: selectedService.image
-                    ? `url(${selectedService.image})`
+                  backgroundImage: getImageUrl(selectedService.image)
+                    ? `url(${getImageUrl(selectedService.image)})`
                     : `url(/fallback-image.png)`,
                 }}
               >
@@ -335,7 +353,7 @@ const HomeServiceComponent = ({
               </DialogTitle>
               <div className="flex items-end gap-2 mb-4 pt-2">
                 <span className="text-2xl font-bold text-rose-600">
-                  Rs. {selectedService.price.toFixed(2)}
+                  {getDisplayPrice(selectedService)}
                 </span>
               </div>
             </DialogHeader>
@@ -393,7 +411,7 @@ const HomeServiceComponent = ({
                             >
                               <td className="p-2 border">{price.bhk}</td>
                               <td className="p-2 border text-center">
-                                Rs. {price.price.toFixed(2)}
+                                {price.price}
                               </td>
                               <td className="p-2 border text-center">
                                 {price.time}
@@ -441,6 +459,15 @@ const HomeServiceComponent = ({
             </div>
 
             <div className="mt-4 flex gap-3 flex-shrink-0 pt-4 border-t">
+              <Button
+                className="flex-1 bg-sky-500 hover:bg-sky-600"
+                onClick={() => {
+                  openWhatsApp(selectedService.whatsappMessage);
+                  handleCloseDialog();
+                }}
+              >
+                Book This Service
+              </Button>
               {showTypeSelection ? (
                 <Button
                   className="flex-1 bg-green-500 hover:bg-green-600"
@@ -503,9 +530,7 @@ const HomeServiceComponent = ({
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
                       >
                         <td className="p-2 border">{price.bhk}</td>
-                        <td className="p-2 border text-center">
-                          Rs. {price.price.toFixed(2)}
-                        </td>
+                        <td className="p-2 border text-center">{price.price}</td>
                         <td className="p-2 border text-center">{price.time}</td>
                         <td className="p-2 border text-center">
                           <Button

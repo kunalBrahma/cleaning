@@ -27,12 +27,12 @@ const ContactSection: React.FC = () => {
     {
       icon: <MapPin size={24} className="text-blue-700" />,
       title: 'Our Location',
-      content: '123 Main Street, Cityville, ST 12345',
+      content: 'Dakhingaon Khanka Mini Tajmahal Road Insaf Nagar Path, Guwhatai, Assam ',
     },
     {
       icon: <Phone size={24} className="text-blue-700" />,
       title: 'Phone Number',
-      content: '(555) 123-4567',
+      content: '+91 81330 39362',
     },
     {
       icon: <Mail size={24} className="text-blue-700" />,

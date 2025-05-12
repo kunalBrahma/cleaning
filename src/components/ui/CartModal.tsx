@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { X, Trash2 } from "lucide-react";
 import { gsap } from "gsap";
 import { Link } from "react-router-dom";
@@ -32,6 +32,10 @@ const CartModal: React.FC<CartModalProps> = ({
   calculateTotal,
 }) => {
   const cartModalRef = useRef<HTMLDivElement>(null);
+  const [editingQuantity, setEditingQuantity] = useState<{
+    id: string;
+    value: string;
+  } | null>(null);
 
   // Calculate Subtotal
   const calculateSubtotal = () => {
@@ -70,6 +74,39 @@ const CartModal: React.FC<CartModalProps> = ({
       }
     }
   }, [isOpen]);
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (editingQuantity) {
+      setEditingQuantity({ ...editingQuantity, value });
+    }
+  };
+
+  const handleQuantityBlur = (item: CartItem) => {
+    if (editingQuantity) {
+      let newQuantity = parseInt(editingQuantity.value);
+      if (isNaN(newQuantity)) {
+        newQuantity = 1;
+      } else if (newQuantity < 1) {
+        newQuantity = 1;
+      }
+      updateQuantity(item.id, newQuantity);
+      setEditingQuantity(null);
+    }
+  };
+
+  const handleQuantityKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    item: CartItem
+  ) => {
+    if (e.key === "Enter") {
+      handleQuantityBlur(item);
+    }
+  };
+
+  const handleQuantityClick = (item: CartItem) => {
+    setEditingQuantity({ id: item.id, value: item.quantity.toString() });
+  };
 
   if (!isOpen) return null;
 
@@ -115,14 +152,30 @@ const CartModal: React.FC<CartModalProps> = ({
                   <p className="text-gray-500 text-sm">{item.category}</p>
                   <div className="flex items-center mt-2">
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                       className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-l"
                     >
                       -
                     </button>
-                    <span className="w-10 h-8 flex items-center justify-center border-t border-b border-gray-300">
-                      {item.quantity}
-                    </span>
+                    {editingQuantity?.id === item.id ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={editingQuantity.value}
+                        onChange={handleQuantityChange}
+                        onBlur={() => handleQuantityBlur(item)}
+                        onKeyDown={(e) => handleQuantityKeyDown(e, item)}
+                        className="w-10 h-8 flex items-center justify-center border-t border-b border-gray-300 text-center"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="w-10 h-8 flex items-center justify-center border-t border-b border-gray-300 cursor-text"
+                        onClick={() => handleQuantityClick(item)}
+                      >
+                        {item.quantity}
+                      </span>
+                    )}
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-r"

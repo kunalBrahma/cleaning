@@ -68,7 +68,7 @@ const Sofa = () => {
   useEffect(() => {
       const fetchServices = async () => {
         try {
-          const response = await fetch("/api/services-by-category"); // Fixed the endpoint
+          const response = await fetch("/api/api/services-by-category"); // Fixed the endpoint
 
           if (!response.ok) {
             const errorText = await response.text(); // Log the response text for debugging

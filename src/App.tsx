@@ -36,6 +36,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ToastContainer } from "react-toastify"; 
 import "react-toastify/dist/ReactToastify.css"; 
 import RePaintingPage from "./pages/RePaintingPage";
+import CarpetCleaningPage from "./pages/CarpetCleaningPage";
 
 
 function HomePage() {
@@ -105,6 +106,10 @@ function App() {
                 element={<SofaCleaninngPage />}
               />
               <Route
+                path="/cleaning/carpet"
+                element={<CarpetCleaningPage />}
+              />
+              <Route
                 path="/cleaning/full-home"
                 element={<FullHomeCleaningPage />}
               />
@@ -116,6 +121,7 @@ function App() {
                 path="/painting/re-painting"
                 element={<RePaintingPage />}
               />
+              
               <Route path="/painting" element={<PaintingServicePage />} />
               <Route path="/pest-control" element={<PestControlPage />} />
               <Route path="/repairs" element={<HomeRepair />} />

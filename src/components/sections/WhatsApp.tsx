@@ -17,13 +17,13 @@ const WhatsApp: React.FC = () => {
           }`}
         >
           <a
-            href="tel:+916000277199"
+            href="tel:+918133039362"
             className="bg-rose-500 text-white p-4 rounded-full shadow-lg hover:bg-rose-600 transition-all duration-300 flex items-center justify-center transform hover:scale-110"
           >
             <FaPhone size={32} />
           </a>
           <a
-            href="https://wa.me/916000277199?text=Hi,%20can%20I%20get%20more%20info%20about%20your%20service"
+            href="https://wa.me/918133039362?text=Hi,%20can%20I%20get%20more%20info%20about%20your%20service"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-all duration-300 flex items-center justify-center transform hover:scale-110"
