@@ -18,6 +18,8 @@ import {
   FaCrown,
   FaEraser,
   FaShieldAlt,
+  FaPumpSoap,
+  FaCogs,
 } from "react-icons/fa";
 import { IconType } from "react-icons";
 
@@ -37,7 +39,10 @@ const iconMap: Record<string, IconType> = {
   FaCrown,
   FaEraser,
   FaShieldAlt,
+  FaPumpSoap,
+  FaCogs,
 };
+
 
 const whatsappNumber = "918638167421";
 

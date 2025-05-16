@@ -176,6 +176,25 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
+const calculateConvenienceFee = (items) => {
+  // Calculate subtotal for Cleaning Services items
+  const cleaningSubtotal = items
+    .filter((item) => item.category === "Cleaning Services")
+    .reduce((total, item) => total + item.price * item.quantity, 0);
+
+  let convenienceFee = 0;
+  if (cleaningSubtotal > 0) {
+    if (cleaningSubtotal < 500) {
+      convenienceFee = 39;
+    } else {
+      const increments = Math.floor(cleaningSubtotal / 500);
+      convenienceFee = 39 + increments * 10;
+    }
+  }
+
+  return convenienceFee;
+};
+
 // Image upload endpoint (admin-only, accessible from admin.cityhomeservice.in)
 app.post("/api/upload", authenticateAdmin, upload.single("file"), async (req, res) => {
   try {
@@ -713,7 +732,7 @@ app.post("/api/checkout", async (req, res) => {
     }
   }
 
-  const orderNumber = `ORD-${Math.floor(Math.random() * 1000000)}`;
+  const orderNumber = `BKG-${Math.floor(Math.random() * 1000000)}`;
 
   let connection;
   try {
@@ -786,7 +805,7 @@ app.post("/api/checkout", async (req, res) => {
 
     await connection.commit();
 
-    const message = `Thank you for your order, ${firstName} ${lastName}! Your order number is ${orderNumber}. Total: Rs. ${total.toFixed(
+    const message = `Thank you for your booking, ${firstName} ${lastName} Your booking number is ${orderNumber}. Total: Rs. ${total.toFixed(
       2
     )}.`;
     sendWhatsAppNotification(phone, message);
@@ -816,12 +835,12 @@ app.post("/api/checkout", async (req, res) => {
 
     res
       .status(201)
-      .json({ message: "Order placed successfully", orderSummary });
+      .json({ message: "Booking placed successfully", orderSummary });
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Checkout error:", error);
     res.status(500).json({
-      message: "Failed to place order",
+      message: "Failed to Book",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   } finally {
@@ -889,7 +908,35 @@ app.get("/api/user/bookings", authenticateToken, async (req, res) => {
   }
 });
 
-// Get all orders (no authentication required)
+// ORDERS CRUD
+
+app.get("/api/serv", async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [services] = await connection.query(`
+        SELECT id, service_code, name, price, pricetable, category, subCategory
+        FROM services
+      `);
+      res.status(200).json({
+        message: "Services retrieved successfully",
+        services: services.map((service) => ({
+          ...service,
+          pricetable: service.pricetable ? JSON.parse(service.pricetable) : null,
+        })),
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    res.status(500).json({
+      message: "Failed to fetch services",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 app.get("/api/orders", async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -953,6 +1000,319 @@ app.get("/api/orders", async (req, res) => {
     });
   }
 });
+
+app.get("/api/orders/:orderId/items", async (req, res) => {
+  const { orderId } = req.params;
+  try {
+    const connection = await pool.getConnection();
+    try {
+      const [items] = await connection.query(`
+        SELECT order_item_id, product_id, product_name, quantity, price
+        FROM order_items
+        WHERE order_id = ?
+      `, [orderId]);
+      res.status(200).json({
+        message: "Order items retrieved successfully",
+        items,
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error fetching order items:", error);
+    res.status(500).json({
+      message: "Failed to fetch order items",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.put("/api/orders/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+  const {
+    first_name,
+    last_name,
+    guest_email,
+    guest_phone,
+    address_line1,
+    address_line2,
+    city,
+    state,
+    zip_code,
+    status,
+  } = req.body;
+
+  // Validate required fields
+  if (
+    !first_name ||
+    !last_name ||
+    !address_line1 ||
+    !city ||
+    !state ||
+    !zip_code ||
+    !status
+  ) {
+    return res.status(400).json({
+      message: "Missing required fields",
+    });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Update order details
+      await connection.query(
+        `
+        UPDATE orders
+        SET
+          first_name = ?,
+          last_name = ?,
+          guest_email = ?,
+          guest_phone = ?,
+          address_line1 = ?,
+          address_line2 = ?,
+          city = ?,
+          state = ?,
+          zip_code = ?,
+          status = ?,
+          updated_at = NOW()
+        WHERE order_id = ?
+        `,
+        [
+          first_name,
+          last_name,
+          guest_email || null,
+          guest_phone || null,
+          address_line1,
+          address_line2 || null,
+          city,
+          state,
+          zip_code,
+          status,
+          orderId,
+        ]
+      );
+
+      // Check if order exists
+      const [orderCheck] = await connection.query(
+        `SELECT 1 FROM orders WHERE order_id = ?`,
+        [orderId]
+      );
+      if (!orderCheck.length) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Recalculate order totals
+      const [items] = await connection.query(
+        `
+        SELECT oi.price, oi.quantity, s.category
+        FROM order_items oi
+        JOIN services s ON oi.product_id LIKE CONCAT(s.service_code, '%')
+        WHERE oi.order_id = ?
+        `,
+        [orderId]
+      );
+
+      const subtotal = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      // Calculate convenience fee
+      const convenience_fee = calculateConvenienceFee(items);
+      const discount = 0; // Adjust as needed
+      const total = subtotal + convenience_fee - discount;
+
+      // Update order totals
+      await connection.query(
+        `
+        UPDATE orders
+        SET
+          subtotal = ?,
+          convenience_fee = ?,
+          discount = ?,
+          total = ?,
+          updated_at = NOW()
+        WHERE order_id = ?
+        `,
+        [subtotal, convenience_fee, discount, total, orderId]
+      );
+
+      res.status(200).json({
+        message: "Order updated successfully",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({
+      message: "Failed to update order",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.post("/api/orders/:orderId/items", async (req, res) => {
+  const { orderId } = req.params;
+  const { service_code, quantity, bhk } = req.body;
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Fetch service details
+      const [services] = await connection.query(
+        `
+        SELECT service_code, name, price, pricetable, category
+        FROM services
+        WHERE service_code = ?
+        `,
+        [service_code]
+      );
+
+      if (!services.length) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      const service = services[0];
+      let price = parseFloat(service.price);
+      let product_id = service.service_code;
+      let product_name = service.name;
+
+      // Handle Full Home/Empty Home pricing
+      if (service.pricetable) {
+        if (!bhk) {
+          return res.status(400).json({ message: "BHK is required for this service" });
+        }
+        const pricetable = JSON.parse(service.pricetable);
+        const bhkPrice = pricetable.find((p) => p.bhk === bhk);
+        if (!bhkPrice) {
+          return res.status(400).json({ message: "Invalid BHK selection" });
+        }
+        price = parseFloat(bhkPrice.price.replace("₹", ""));
+        product_id = `${service.service_code}-${bhk.replace(" ", "").toLowerCase()}`;
+        product_name = `${service.name} (${bhk})`;
+      }
+
+      // Add item to order_items
+      await connection.query(
+        `
+        INSERT INTO order_items (order_id, product_id, product_name, quantity, price)
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [orderId, product_id, product_name, quantity, price]
+      );
+
+      // Recalculate order totals
+      const [items] = await connection.query(
+        `
+        SELECT oi.price, oi.quantity, s.category
+        FROM order_items oi
+        JOIN services s ON oi.product_id LIKE CONCAT(s.service_code, '%')
+        WHERE oi.order_id = ?
+        `,
+        [orderId]
+      );
+
+      const subtotal = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      // Calculate convenience fee
+      const convenience_fee = calculateConvenienceFee(items);
+      const discount = 0; // Adjust as needed
+      const total = subtotal + convenience_fee - discount;
+
+      await connection.query(
+        `
+        UPDATE orders
+        SET subtotal = ?, convenience_fee = ?, discount = ?, total = ?, updated_at = NOW()
+        WHERE order_id = ?
+        `,
+        [subtotal, convenience_fee, discount, total, orderId]
+      );
+
+      res.status(201).json({
+        message: "Item added successfully",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error adding item:", error);
+    res.status(500).json({
+      message: "Failed to add item",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.delete("/api/orders/:orderId/items/:itemId", async (req, res) => {
+  const { orderId, itemId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      // Delete item
+      const [result] = await connection.query(
+        `
+        DELETE FROM order_items
+        WHERE order_item_id = ? AND order_id = ?
+        `,
+        [itemId, orderId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+
+      // Recalculate order totals
+      const [items] = await connection.query(
+        `
+        SELECT oi.price, oi.quantity, s.category
+        FROM order_items oi
+        JOIN services s ON oi.product_id LIKE CONCAT(s.service_code, '%')
+        WHERE oi.order_id = ?
+        `,
+        [orderId]
+      );
+
+      const subtotal = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      // Calculate convenience fee
+      const convenience_fee = calculateConvenienceFee(items);
+      const discount = 0; // Adjust as needed
+      const total = subtotal + convenience_fee - discount;
+
+      // Update order totals
+      await connection.query(
+        `
+        UPDATE orders
+        SET subtotal = ?, convenience_fee = ?, discount = ?, total = ?, updated_at = NOW()
+        WHERE order_id = ?
+        `,
+        [subtotal, convenience_fee, discount, total, orderId]
+      );
+
+      res.status(200).json({
+        message: "Item removed successfully",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Error removing item:", error);
+    res.status(500).json({
+      message: "Failed to remove item",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 
 // Contact form submission
 app.post("/api/contact", contactLimiter, async (req, res) => {
@@ -1120,42 +1480,47 @@ app.delete("/api/contact/:id", authenticateAdmin, async (req, res) => {
 
 async function sendWhatsAppNotification(phoneNumber, message) {
   try {
-    let formattedPhoneNumber = phoneNumber.trim();
-    if (!formattedPhoneNumber.startsWith("+")) {
-      formattedPhoneNumber = `+91${formattedPhoneNumber}`;
+    // Format phone number
+    let formattedPhoneNumber = phoneNumber.trim().replace(/\D/g, '');
+    
+    if (!formattedPhoneNumber.startsWith('+')) {
+      // Remove leading 0 if present
+      if (formattedPhoneNumber.startsWith('0')) {
+        formattedPhoneNumber = formattedPhoneNumber.substring(1);
+      }
+      // Add +91 if not already starting with 91
+      if (!formattedPhoneNumber.startsWith('91')) {
+        formattedPhoneNumber = `91${formattedPhoneNumber}`;
+      }
+      formattedPhoneNumber = `+${formattedPhoneNumber}`;
     }
 
-    const options = {
-      method: "POST",
+    // Create form data
+    const formData = new URLSearchParams();
+    formData.append('appkey',  '2b7add86-8126-431b-a7f2-bf3a5de57368');
+    formData.append('authkey',  'oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP');
+    formData.append('to', formattedPhoneNumber);
+    formData.append('message', message);
+
+    const response = await fetch('https://whatsapp.webotapp.com/api/create-message', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        appkey: process.env.WHATSAPP_APP_KEY || "991b16da-8631-4b78-aa70-24c6b4eb8d51",
-        authkey: process.env.WHATSAPP_AUTH_KEY || "oecn2ubK3Rrm4zwTvdhqvqO2qqwVEA0scFBHpxiM9yTXJnxvnP",
-        to: formattedPhoneNumber,
-        message: message,
-      }),
-    };
+      body: formData
+    });
 
-    const response = await fetch(
-      "https://whatsapp.webotapp.com/api/create-message",
-      options
-    );
-
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await response.json();
-      console.log("WhatsApp notification sent:", data);
-      return data;
-    } else {
-      const text = await response.text();
-      console.error("Unexpected response from WhatsApp API:", text);
-      return null;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const responseData = await response.json();
+    console.log('WhatsApp notification sent:', responseData);
+    return responseData;
+    
   } catch (error) {
-    console.error("Error sending WhatsApp notification:", error);
-    return null;
+    console.error('Error sending WhatsApp notification:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -1406,11 +1771,11 @@ app.put("/api/orders/:id/status", authenticateAdmin, async (req, res) => {
           : null,
       };
 
-      const message = `Dear ${order.first_name} ${order.last_name}, your order (${order.order_number}) status has been updated to ${status.trim()}.`;
+      const message = `Dear ${order.first_name} ${order.last_name}, your booking (${order.order_number}) has been ${status.trim()}.`;
       await sendWhatsAppNotification(order.guest_phone, message);
 
       res.status(200).json({
-        message: "Order status updated successfully",
+        message: "Booking status updated successfully",
         order: formattedOrder,
       });
     } finally {
@@ -1419,7 +1784,7 @@ app.put("/api/orders/:id/status", authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error("Update order status error:", error);
     res.status(500).json({
-      message: "Failed to update order status",
+      message: "Failed to update booking status",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
@@ -1538,6 +1903,8 @@ app.get("/api/offerings", async (req, res) => {
       const formattedOfferings = offerings.map((offering) => ({
         ...offering,
         image: offering.image ? `${offering.image}` : null,
+        pricetable: offering.pricetable ? JSON.parse(offering.pricetable) : null,
+        service_code: offering.service_code,
         
       }));
 

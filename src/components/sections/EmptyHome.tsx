@@ -38,7 +38,7 @@ const EmptyHome = () => {
           }
           
           const data = await response.json();
-          console.log("API Response:", data); // Debug: Log raw API response
+          // Debug: Log raw API response
           
           // Get all services from the Cleaning Services category
           const cleaningServices = data["Cleaning Services"] || [];
@@ -48,7 +48,7 @@ const EmptyHome = () => {
             (service: any) => service.subCategory === "Empty Home"
           );
           
-          console.log("Filtered Empty Home Services:", fullHomeServices); // Debug: Log filtered services
+         
           
           if (fullHomeServices.length === 0) {
             setError("No Empty Home services found");
@@ -136,7 +136,7 @@ const EmptyHome = () => {
             };
           });
           
-          console.log("Mapped Services:", mappedServices); // Debug: Log mapped services
+          
           
           setServices(mappedServices);
         } catch (err) {

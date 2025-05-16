@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { CheckCircle, ArrowLeft, MapPin, Calendar, Clock } from "lucide-react";
+import { CheckCircle, ArrowLeft, MapPin, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
 interface OrderItem {
@@ -45,12 +45,12 @@ const formatDate = (dateString: string) => {
   }).format(date);
 };
 
-const getEstimatedDelivery = () => {
-  const today = new Date();
-  const deliveryDate = new Date(today);
-  deliveryDate.setDate(today.getDate() + 3);
-  return formatDate(deliveryDate.toISOString());
-};
+// const getEstimatedDelivery = () => {
+//   const today = new Date();
+//   const deliveryDate = new Date(today);
+//   deliveryDate.setDate(today.getDate() + 3);
+//   return formatDate(deliveryDate.toISOString());
+// };
 
 const ThankYouPage = () => {
   const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
@@ -178,13 +178,7 @@ const ThankYouPage = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Estimated Delivery</h3>
-                    <div className="flex items-center">
-                      <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-                      <p>{getEstimatedDelivery()}</p>
-                    </div>
-                  </div>
+                  
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-1">Payment Method</h3>
                     <p className="capitalize">
@@ -285,7 +279,7 @@ const ThankYouPage = () => {
                     className="inline-flex w-full justify-center items-center px-4 py-2 bg-sky-500 text-white rounded-md hover:bg-sky-600 transition-colors"
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Continue Shopping
+                    Continue Booking
                   </Link>
                 </div>
               </CardContent>
@@ -293,10 +287,10 @@ const ThankYouPage = () => {
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h3 className="font-medium text-yellow-800 mb-2">Need Help?</h3>
               <p className="text-sm text-yellow-700 mb-2">
-                For any questions or issues with your order, please contact our customer service.
+                For any questions or issues with your booking, please contact our customer service.
               </p>
-              <a href="mailto:support@cityhomeservice.com" className="text-sm font-medium text-yellow-800 hover:underline">
-                support@cityhomeservice.com
+              <a href="mailto:guwahaticityhomeservice@gmail.com" className="text-sm font-medium text-yellow-800 hover:underline">
+                guwahaticityhomeservice@gmail.com
               </a>
             </div>
           </div>

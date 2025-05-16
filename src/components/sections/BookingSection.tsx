@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
   phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }),
   serviceType: z.string().min(1, { message: 'Please select a service category' }),
-  specificService: z.string().min(1, { message: 'Please select a specific service' }),
+  specificService: z.string().optional(), // Making specificService optional
   date: z.string().min(1, { message: 'Please select a date' }),
   time: z.string().min(1, { message: 'Please select a time slot' }),
   address: z.string().min(5, { message: 'Please enter a valid address' }),
@@ -28,6 +28,8 @@ type FormData = z.infer<typeof formSchema>;
 
 const BookingSection: React.FC = () => {
   const formElement = useRef<HTMLFormElement>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  
   useEffect(() => {
     emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
   }, []);
@@ -37,9 +39,23 @@ const BookingSection: React.FC = () => {
     handleSubmit,
     formState: { errors, isSubmitting, isSubmitSuccessful },
     reset,
+    watch,
+    setValue
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   });
+
+  // Watch for changes in the serviceType field
+  const serviceType = watch('serviceType');
+  
+  // Update the selectedCategory state when serviceType changes
+  useEffect(() => {
+    setSelectedCategory(serviceType || '');
+    // Reset the specificService value when changing categories
+    if (serviceType !== selectedCategory) {
+      setValue('specificService', '');
+    }
+  }, [serviceType, selectedCategory, setValue]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -58,15 +74,45 @@ const BookingSection: React.FC = () => {
     }
   };
 
+  // Function to render specific service options based on selected category
+  const renderSpecificServiceOptions = () => {
+    switch (selectedCategory) {
+      case 'cleaning':
+        return (
+          <>
+            <option value="" disabled>Select a service</option>
+            <option value="bathroom">Bathroom Cleaning</option>
+            <option value="kitchen">Kitchen Cleaning</option>
+            <option value="fullhome">Full Home Cleaning</option>
+            <option value="empty">Empty Home Cleaning</option>
+            <option value="carpet">Carpet Cleaning</option>
+          </>
+        );
+      case 'painting':
+        return (
+          <>
+            <option value="" disabled>Select a service</option>
+            <option value="repainting">Re-Painting</option>
+            <option value="interior">New Interior Painting</option>
+            <option value="texture">Texture Painting</option>
+          </>
+        );
+      default:
+        return (
+          <option value="" disabled>Select a service</option>
+        );
+    }
+  };
+
   return (
     <section
-  id="booking"
-  className="py-20 bg-cover bg-fixed bg-center bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500"
-  style={{
-    backgroundImage:
-      'url("/banner.webp")',
-  }}
->
+      id="booking"
+      className="py-20 bg-cover bg-fixed bg-center bg-gradient-to-br from-sky-500 via-indigo-500 to-purple-500"
+      style={{
+        backgroundImage:
+          'url("/banner.webp")',
+      }}
+    >
       <Container>
         <SectionHeading 
           title="Book Your Service" 
@@ -197,6 +243,7 @@ const BookingSection: React.FC = () => {
                         <option value="pest">Pest Control</option>
                         <option value="repair">Home Repairs</option>
                         <option value="moving">Packers & Movers</option>
+                         <option value="wood">Wood Cutting Service</option>
                       </select>
                       {errors.serviceType && (
                         <p className="mt-1 text-sm text-red-600">{errors.serviceType.message}</p>
@@ -204,7 +251,7 @@ const BookingSection: React.FC = () => {
                     </div>
                     <div>
                       <label htmlFor="specificService" className="block text-sm font-medium text-gray-700 mb-1">
-                        Specific Service <span className="text-red-500">*</span>
+                        Specific Service 
                       </label>
                       <select
                         id="specificService"
@@ -212,11 +259,7 @@ const BookingSection: React.FC = () => {
                         defaultValue=""
                         {...register('specificService')}
                       >
-                        <option value="" disabled>Select a service</option>
-                        <option value="bathroom">Bathroom Cleaning</option>
-                        <option value="kitchen">Kitchen Cleaning</option>
-                        <option value="fullhome">Full Home Cleaning</option>
-                        <option value="carpet">Carpet Cleaning</option>
+                        {renderSpecificServiceOptions()}
                       </select>
                       {errors.specificService && (
                         <p className="mt-1 text-sm text-red-600">{errors.specificService.message}</p>

@@ -3,50 +3,50 @@ import { Testimonial } from '../types';
 export const testimonials: Testimonial[] = [
   {
     id: '1',
-    name: 'Sarah Johnson',
-    role: 'Homeowner',
-    content: 'City Home Service transformed my home! Their cleaning team was thorough, professional, and left my place spotless. I highly recommend their deep cleaning services.',
+    name: 'Rima Das',
+    role: 'Homemaker, Guwahati',
+    content: 'I booked their sofa cleaning service and I’m amazed! The team was polite and cleaned my 3-seater like new. Thank you City Home Service!',
     rating: 5,
-    image: 'https://images.pexels.com/photos/1858175/pexels-photo-1858175.jpeg?auto=compress&cs=tinysrgb&w=600'
+    image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=600'
   },
   {
     id: '2',
-    name: 'Michael Rodriguez',
-    role: 'Business Owner',
-    content: 'We hired City Home Service for our office renovation. Their painting crew was punctual, neat, and delivered outstanding results. Our clients have been complimenting the new look!',
+    name: 'Rakesh Nath',
+    role: 'IT Professional, Tezpur',
+    content: 'Their kitchen cleaning service is a lifesaver. Grease stains and grime gone in a flash! Highly recommended for working professionals.',
     rating: 5,
-    image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=600'
+    image: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=600'
   },
   {
     id: '3',
-    name: 'Emily Chen',
-    role: 'Apartment Resident',
-    content: 'After moving to a new apartment, I discovered a pest problem. City Home Service responded quickly and effectively eliminated the issue. Professional, knowledgeable, and thorough!',
+    name: 'Mitali Hazarika',
+    role: 'College Professor, Dibrugarh',
+    content: 'I got my living room painted by City Home Service. The painters were skilled and left no mess behind. My walls look brand new!',
     rating: 4,
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=600'
+    image: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=600'
   },
   {
     id: '4',
-    name: 'Emily Chen',
-    role: 'Apartment Resident',
-    content: 'After moving to a new apartment, I discovered a pest problem. City Home Service responded quickly and effectively eliminated the issue. Professional, knowledgeable, and thorough!',
-    rating: 4,
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=600'
+    name: 'Ajay Kalita',
+    role: 'Bank Employee, Jorhat',
+    content: 'Their bathroom cleaning team did a wonderful job. Tiles and fittings are shining, and the smell is fresh. Very professional and affordable.',
+    rating: 5,
+    image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=600'
   },
   {
     id: '5',
-    name: 'Emily Chen',
-    role: 'Apartment Resident',
-    content: 'After moving to a new apartment, I discovered a pest problem. City Home Service responded quickly and effectively eliminated the issue. Professional, knowledgeable, and thorough!',
-    rating: 4,
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=600'
+    name: 'Sangita Roy',
+    role: 'Boutique Owner, Silchar',
+    content: 'Booked home cleaning before Diwali. They cleaned every corner with attention to detail. Loved their service and punctuality.',
+    rating: 5,
+    image: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=600'
   },
   {
     id: '6',
-    name: 'Emily Chen',
-    role: 'Apartment Resident',
-    content: 'After moving to a new apartment, I discovered a pest problem. City Home Service responded quickly and effectively eliminated the issue. Professional, knowledgeable, and thorough!',
+    name: 'Debojit Nath',
+    role: 'Freelancer, Nagaon',
+    content: 'The cushion and sofa cleaning service was top-notch. Stains are completely gone, and the fabric smells fresh. Great job!',
     rating: 4,
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=600'
-  },
+    image: 'https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&w=600'
+  }
 ];

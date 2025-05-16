@@ -133,7 +133,7 @@ const CartPage = () => {
                 </Button>
 
                 <Button variant="outline" className="w-full mt-4" size="lg">
-                  <Link to="/services">Continue Shopping</Link>
+                  <Link to="/cleaning">Continue Booking</Link>
                 </Button>
               </div>
             </div>

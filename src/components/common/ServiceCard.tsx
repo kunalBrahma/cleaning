@@ -33,7 +33,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
 
   // Normalize icon name (handle "<Bath />", "https://cityhomeservice.inBath", or "Bath")
   const normalizeIconName = (icon: string): string => {
-    // Remove JSX-like syntax (e.g., "<Bath />" → "Bath")
+    
     if (icon.startsWith('<') && icon.endsWith('/>')) {
       return icon.replace(/[<>/]/g, '');
     }

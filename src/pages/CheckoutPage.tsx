@@ -282,7 +282,7 @@ const CheckoutPage: React.FC = () => {
       clearCart();
 
       // Show success toast
-      toast.success("Order placed successfully!", {
+      toast.success("Booking placed successfully!", {
         position: "top-right",
         autoClose: 3000,
         className: "bg-green-500 text-white border-green-600",
@@ -292,7 +292,7 @@ const CheckoutPage: React.FC = () => {
       navigate("/thank-you", { state: { orderSummary } });
     } catch (error) {
       console.error("Error in onSubmit:", error);
-      let errorMessage = "Failed to place order. Please try again.";
+      let errorMessage = "Failed to book. Please try again.";
 
       // Extract more specific error message if available
       if (error instanceof AxiosError && error.response) {
@@ -430,7 +430,7 @@ const CheckoutPage: React.FC = () => {
                   {/* Shipping Address */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Shipping Address</CardTitle>
+                      <CardTitle className="text-lg">Booking Address</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <FormField
@@ -582,7 +582,7 @@ const CheckoutPage: React.FC = () => {
                 <div className="lg:col-span-1 space-y-6">
                   <Card className="sticky top-[150px]">
                     <CardHeader>
-                      <CardTitle className="text-lg">Order Summary</CardTitle>
+                      <CardTitle className="text-lg">Booking Summary</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-4">
@@ -695,7 +695,7 @@ const CheckoutPage: React.FC = () => {
                             Processing...
                           </div>
                         ) : (
-                          "Place Order"
+                          "Place Booking"
                         )}
                       </Button>
                     </CardContent>

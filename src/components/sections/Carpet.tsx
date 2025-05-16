@@ -80,7 +80,6 @@ const Carpet = () => {
         }
 
         const data = await response.json();
-        console.log("API Response:", data); // Log the entire response
 
         // Check if we have the "Cleaning Services" category in the response
         if (data && data["Cleaning Services"]) {
@@ -88,8 +87,6 @@ const Carpet = () => {
           const CarpetServices = data["Cleaning Services"].filter(
             (service: any) => service.subCategory === "Carpet Cleaning"
           );
-
-          console.log("Carpet Services:", CarpetServices); // Log filtered services
 
           if (CarpetServices.length === 0) {
             setError("No Carpet services found");
@@ -245,8 +242,8 @@ const Carpet = () => {
       whatsappNumber={whatsappNumber}
       id="Carpet-cleaning"
       backgroundImage="/banner.webp"
-      title="Expert Carpet Cleaning for a Fresher, Healthier Home"
-      subtitle="Deep cleaning, stain removal, and sanitization — book your carpet refresh today!"
+      title="Expert Carpet & Mattress Cleaning for a Fresher, Healthier Home"
+      subtitle="Deep cleaning, stain removal, and sanitization for your carpets and mattresses — book your home refresh today!"
       serviceDetails={serviceDetails}
     />
   );

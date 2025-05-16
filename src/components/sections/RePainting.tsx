@@ -190,15 +190,15 @@ const RePainting = () => {
   includes: [
     {
       icon: <FaPaintRoller className="text-green-500 mt-1" size={16} />,
-      label: "Smooth and even wall painting by professionals",
+      label: "Masking The Furniture fixtures",
     },
     {
       icon: <FaTint className="text-green-500 mt-1" size={16} />,
-      label: "Use of premium, eco-friendly paints",
+      label: "Putty 2 Finishing Coat",
     },
     {
       icon: <FaShieldAlt className="text-green-500 mt-1" size={16} />,
-      label: "Protective covering for furniture and floors",
+      label: "3 Years warranty",
     },
   ],
   notes: [
@@ -208,7 +208,7 @@ const RePainting = () => {
     },
     {
       icon: <FaTools className="text-yellow-500 mt-1" size={16} />,
-      label: "Our team comes fully equipped for prep and finish",
+      label: "We will provide cleaning service in the working area after the complete work",
     },
     {
       icon: <FaCheckCircle className="text-yellow-500 mt-1" size={16} />,

@@ -106,14 +106,13 @@ const ServiceComponent = ({
     }
   };
 
-  const openWhatsApp = (message: string) => {
+const openWhatsApp = (message: string) => {
   const encodedMessage = encodeURIComponent(message);
   window.open(
     `https://wa.me/918133039362?text=${encodedMessage}`,
     "_blank"
   );
 };
-
 
   const handleAddToCart = (service: Service) => {
     // Normalize category, default to "Cleaning Services" if invalid

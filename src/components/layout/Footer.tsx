@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, Mail, Clock, Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 
@@ -18,15 +18,11 @@ const Footer: React.FC = () => {
               <a href="#" className="text-gray-300 hover:text-white transition-colors">
                 <Facebook size={20} />
               </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
-                <Twitter size={20} />
-              </a>
+              
               <a href="#" className="text-gray-300 hover:text-white transition-colors">
                 <Instagram size={20} />
               </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
-                <Youtube size={20} />
-              </a>
+              
             </div>
           </div>
           
@@ -68,7 +64,7 @@ const Footer: React.FC = () => {
               </li>
               <li className="flex items-center">
                 <Mail size={20} className="mr-2 text-blue-400 flex-shrink-0" />
-                <span className="text-gray-300">info@cityhomeservice.com</span>
+                <span className="text-gray-300">guwahaticityhomeservice@gmail.com</span>
               </li>
               <li className="flex items-start">
                 <Clock size={20} className="mr-2 text-blue-400 flex-shrink-0 mt-1" />
