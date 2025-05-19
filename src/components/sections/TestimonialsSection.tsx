@@ -66,9 +66,8 @@ const TestimonialsSection: React.FC = () => {
             variant="outline"
             size="sm"
             className="swiper-button-prev absolute top-1/2 -left-4 transform -translate-y-1/2 z-10 bg-white shadow-md hover:bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center"
-            aria-label="Previous testimonial"
-          >
-            <svg
+            aria-label="Previous testimonial" children={undefined}          > 
+            {/* <svg
               className="w-2 h-2"
               fill="none"
               stroke="currentColor"
@@ -81,15 +80,14 @@ const TestimonialsSection: React.FC = () => {
                 strokeWidth={2}
                 d="M15 19l-7-7 7-7"
               />
-            </svg>
+            </svg> */}
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="swiper-button-next absolute top-1/2 -right-4 transform -translate-y-1/2 z-10 bg-white shadow-md hover:bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center"
-            aria-label="Next testimonial"
-          >
-            <svg
+            aria-label="Next testimonial" children={undefined}   >
+            {/* <svg
               className="w-2 h-2"
               fill="none"
               stroke="currentColor"
@@ -102,7 +100,7 @@ const TestimonialsSection: React.FC = () => {
                 strokeWidth={2}
                 d="M9 5l7 7-7 7"
               />
-            </svg>
+            </svg> */}
           </Button>
 
           {/* Pagination */}

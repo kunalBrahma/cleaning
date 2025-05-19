@@ -46,6 +46,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  category: string; // Added category to match CartContext
 }
 
 interface OrderSummary {
@@ -169,14 +170,25 @@ const CheckoutPage: React.FC = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const calculateConvenienceFee = (subtotal: number): number => {
-    if (subtotal < 500) {
+  
+  // Calculate cleaning services subtotal (for convenience fee)
+  const cleaningSubtotal = cartItems
+    .filter((item) => item.category === "Cleaning Services")
+    .reduce((total, item) => total + item.price * item.quantity, 0);
+  
+  // Calculate convenience fee based on cleaning services subtotal
+  const calculateConvenienceFee = (): number => {
+    if (cleaningSubtotal === 0) {
+      return 0;
+    }
+    if (cleaningSubtotal < 500) {
       return 39;
     }
-    const increments = Math.floor(subtotal / 500);
+    const increments = Math.floor(cleaningSubtotal / 500);
     return 39 + increments * 10;
   };
-  const convenienceFee = calculateConvenienceFee(subtotal);
+  
+  const convenienceFee = calculateConvenienceFee();
   const total = subtotal + convenienceFee - discount;
 
   const applyCoupon = () => {

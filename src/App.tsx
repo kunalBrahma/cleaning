@@ -62,20 +62,20 @@ function App() {
     const updateTitle = () => {
       const path = window.location.pathname;
       let title = "City Home Service - Professional Home Services";
-      if (path === "/about") title = "About Us - City Home Service";
-      else if (path === "/cart") title = "Your Cart - City Home Service";
-      else if (path === "/checkout") title = "Checkout - City Home Service";
-      else if (path === "/dashboard") title = "Dashboard - City Home Service";
-      else if (path === "/thank-you") title = "Thank You - City Home Service";
-      else if (path.startsWith("/cleaning")) title = "Cleaning Services - City Home Service";
-      else if (path === "/painting") title = "Painting Services - City Home Service";
-      else if (path === "/pest-control") title = "Pest Control - City Home Service";
-      else if (path === "/repairs") title = "Home Repairs - City Home Service";
-      else if (path === "/moving") title = "Packers & Movers - City Home Service";
-      else if (path === "/booking") title = "Book a Service - City Home Service";
-      else if (path === "/contact") title = "Contact Us - City Home Service";
-      else if (path === "/privacy") title = "Privacy Policy - City Home Service";
-      else if (path === "/terms") title = "Terms and Conditions - City Home Service";
+      if (path === "/about") title = "About Us - CHS";
+      else if (path === "/cart") title = "Your Cart - CHS";
+      else if (path === "/checkout") title = "Checkout - CHS";
+      else if (path === "/dashboard") title = "Dashboard - CHS";
+      else if (path === "/thank-you") title = "Thank You - CHS";
+      else if (path.startsWith("/cleaning")) title = "Cleaning Services - CHS";
+      else if (path === "/painting") title = "Painting Services - CHS";
+      else if (path === "/pest-control") title = "Pest Control - CHS";
+      else if (path === "/repairs") title = "Home Repairs - CHS";
+      else if (path === "/moving") title = "Packers & Movers - CHS";
+      else if (path === "/booking") title = "Book a Service - CHS";
+      else if (path === "/contact") title = "Contact Us - CHS";
+      else if (path === "/privacy") title = "Privacy Policy - CHS";
+      else if (path === "/terms") title = "Terms and Conditions - CHS";
       document.title = title;
     };
 

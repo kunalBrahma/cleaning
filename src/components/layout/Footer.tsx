@@ -3,6 +3,7 @@ import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 
+
 const Footer: React.FC = () => {
   const year = new Date().getFullYear();
   
@@ -15,11 +16,11 @@ const Footer: React.FC = () => {
             <h3 className="text-xl font-bold mb-4">City Home Service</h3>
             <p className="text-gray-300 mb-4">Your trusted partner for all home services. Professional, reliable, and affordable solutions for your home needs.</p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://www.facebook.com/share/1C96MrQ6Pi/?mibextid=wwXIfr" target='_blank' className="text-gray-300 hover:text-white transition-colors">
                 <Facebook size={20} />
               </a>
               
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://www.instagram.com/city_homeservice?igsh=MXNubnRmNWxqcmQ1bg%3D%3D&utm_source=qr" target='_blank' className="text-gray-300 hover:text-white transition-colors">
                 <Instagram size={20} />
               </a>
               
@@ -76,14 +77,14 @@ const Footer: React.FC = () => {
         
         <div className="border-t border-gray-800 mt-10 pt-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">© {year} City Home Service. All rights reserved. | Design by <a href='https://sitemakerlab.com/' target='_blank'> Sitemaker Lab</a> </p>
+            <p className="text-gray-400 text-sm">© {year} City Home Service. All rights reserved. |  Developed by<a href='https://sitemakerlab.com/' target='_blank' className='hover:text-red-600'> Sitemaker Lab</a> </p>
             <div className="mt-4 md:mt-0">
               <ul className="flex space-x-6">
                 <li><Link to="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</Link></li>
                 
               </ul>
-            </div>
+            </div>:
           </div>
         </div>
       </Container>

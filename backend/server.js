@@ -804,10 +804,10 @@ app.post("/api/checkout", async (req, res) => {
     }
 
     await connection.commit();
-
-    const message = `Thank you for your booking, ${firstName} ${lastName} Your booking number is ${orderNumber}. Total: Rs. ${total.toFixed(
-      2
-    )}.`;
+    const itemsList = cartItems
+    .map((item) => `- ${item.name} (x${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`)
+  .join("\n");
+    const message = `Dear ${firstName} ${lastName},\n\nThank you for your booking. Your Booking details are as follows:\n\nBooking Reference: ${orderNumber}\nItems Booked:\n${itemsList}\nTotal Amount: Rs. ${total.toFixed(2)}\n\nWe appreciate your business.`;
     sendWhatsAppNotification(phone, message);
 
     const orderSummary = {
@@ -1060,6 +1060,17 @@ app.put("/api/orders/:orderId", async (req, res) => {
   try {
     const connection = await pool.getConnection();
     try {
+      // Get order details before update for notification
+      const [orderBefore] = await connection.query(
+        `SELECT order_number FROM orders WHERE order_id = ?`,
+        [orderId]
+      );
+      
+      // Check if order exists
+      if (!orderBefore.length) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
       // Update order details
       await connection.query(
         `
@@ -1093,26 +1104,16 @@ app.put("/api/orders/:orderId", async (req, res) => {
         ]
       );
 
-      // Check if order exists
-      const [orderCheck] = await connection.query(
-        `SELECT 1 FROM orders WHERE order_id = ?`,
-        [orderId]
-      );
-      if (!orderCheck.length) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
       // Recalculate order totals
       const [items] = await connection.query(
         `
-        SELECT oi.price, oi.quantity, s.category
+        SELECT oi.price, oi.quantity, s.category, oi.product_name
         FROM order_items oi
         JOIN services s ON oi.product_id LIKE CONCAT(s.service_code, '%')
         WHERE oi.order_id = ?
         `,
         [orderId]
       );
-
       const subtotal = items.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
@@ -1138,8 +1139,74 @@ app.put("/api/orders/:orderId", async (req, res) => {
         [subtotal, convenience_fee, discount, total, orderId]
       );
 
+      // Send WhatsApp notification
+          
+      if (guest_phone) {
+        // Format items for the message
+        const itemsList = items
+          .map((item) => `${item.product_name} (x${item.quantity})`)
+          .join('\n');
+
+        const message = 
+          `Dear ${first_name} ${last_name},\n\n` +
+          `Your booking #${orderBefore[0].order_number} has been updated:\n` +
+          `- Name: ${first_name} ${last_name}\n` +
+          `- Address: ${address_line1}${address_line2 ? ", " + address_line2 : ""}, ${city}, ${state}, ${zip_code}\n` +
+          `- Status: ${status}\n` +
+          `- Items:\n${itemsList}\n` +
+          `- Total: ₹${total.toFixed(2)}\n\n` +
+          `Thank you for choosing our services!`;
+        
+        try {
+          await sendWhatsAppNotification(guest_phone, message);
+          console.log(`WhatsApp notification sent to ${guest_phone}`);
+        } catch (notificationError) {
+          console.error(`Failed to send WhatsApp notification to ${guest_phone}:`, notificationError);
+          // Continue with the response even if notification fails
+        }
+      }
+
+      // Return the updated order data
+      const [updatedOrder] = await connection.query(
+        `
+        SELECT 
+          o.order_id,
+          o.order_number,
+          o.first_name,
+          o.last_name,
+          o.guest_email,
+          o.guest_phone,
+          o.address_line1,
+          o.address_line2,
+          o.city,
+          o.state,
+          o.zip_code,
+          o.country,
+          o.payment_method,
+          o.subtotal,
+          o.convenience_fee,
+          o.discount,
+          o.total,
+          o.status,
+          o.created_at,
+          o.updated_at
+        FROM orders o
+        WHERE o.order_id = ?
+        `,
+        [orderId]
+      );
+
       res.status(200).json({
         message: "Order updated successfully",
+        order: {
+          ...updatedOrder[0],
+          created_at: updatedOrder[0].created_at
+            ? new Date(updatedOrder[0].created_at).toISOString()
+            : null,
+          updated_at: updatedOrder[0].updated_at
+            ? new Date(updatedOrder[0].updated_at).toISOString()
+            : null,
+        }
       });
     } finally {
       connection.release();
@@ -1160,6 +1227,15 @@ app.post("/api/orders/:orderId/items", async (req, res) => {
   try {
     const connection = await pool.getConnection();
     try {
+      // Fetch order details for notification
+      const [order] = await connection.query(
+        `SELECT order_number, first_name, last_name, guest_phone FROM orders WHERE order_id = ?`,
+        [orderId]
+      );
+      if (!order.length) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
       // Fetch service details
       const [services] = await connection.query(
         `
@@ -1224,6 +1300,7 @@ app.post("/api/orders/:orderId/items", async (req, res) => {
       const discount = 0; // Adjust as needed
       const total = subtotal + convenience_fee - discount;
 
+      // Update order totals
       await connection.query(
         `
         UPDATE orders
@@ -1232,6 +1309,8 @@ app.post("/api/orders/:orderId/items", async (req, res) => {
         `,
         [subtotal, convenience_fee, discount, total, orderId]
       );
+
+      
 
       res.status(201).json({
         message: "Item added successfully",
@@ -1247,7 +1326,6 @@ app.post("/api/orders/:orderId/items", async (req, res) => {
     });
   }
 });
-
 app.delete("/api/orders/:orderId/items/:itemId", async (req, res) => {
   const { orderId, itemId } = req.params;
 

@@ -1,4 +1,3 @@
-"use client";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Search, Sparkles, Clock, Shield } from "lucide-react";
